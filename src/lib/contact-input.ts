@@ -9,6 +9,11 @@ const optionalText = (maxLength: number) =>
 
 export const contactIdSchema = z.number().int().positive();
 
+/** Contact id taken from a URL; `null` unless it is a plain positive integer. */
+export function parseContactId(value: string | undefined) {
+  return value !== undefined && /^[1-9]\d{0,8}$/.test(value) ? Number(value) : null;
+}
+
 export const contactInputSchema = z.object({
   name: z.string().trim().min(1, "Укажите имя").max(200, "Не длиннее 200 символов"),
   about: optionalText(500),

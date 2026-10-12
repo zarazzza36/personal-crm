@@ -8,6 +8,7 @@ import { EditContactButton } from "@/components/contact-dialog";
 import { DeleteContactButton } from "@/components/delete-contact-button";
 import { NoteForm } from "@/components/note-form";
 import { getContact, listNotes } from "@/db/queries";
+import { parseContactId } from "@/lib/contact-input";
 import { formatDateTime } from "@/lib/format";
 
 type Params = PageProps<"/contacts/[id]">["params"];
@@ -31,11 +32,10 @@ export default function ContactPage({ params }: PageProps<"/contacts/[id]">) {
 
 async function ContactCard({ params }: { params: Params }) {
   const { id } = await params;
-  // Only plain positive integers are valid ids.
-  if (!/^[1-9]\d{0,8}$/.test(id)) {
+  const contactId = parseContactId(id);
+  if (contactId === null) {
     notFound();
   }
-  const contactId = Number(id);
 
   const [contact, notes] = await Promise.all([getContact(contactId), listNotes(contactId)]);
   if (!contact) {

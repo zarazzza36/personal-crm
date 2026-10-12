@@ -5,6 +5,7 @@ import { refresh, revalidatePath } from "next/cache";
 import { redirect, RedirectType } from "next/navigation";
 
 import { db } from "@/db";
+import { listContactsPage } from "@/db/queries";
 import { contacts, notes } from "@/db/schema";
 import {
   contactIdSchema,
@@ -13,10 +14,16 @@ import {
   noteInputSchema,
   type ContactFormErrors,
 } from "@/lib/contact-input";
+import { contactCursorSchema, contactsLimitSchema, type ContactsPage } from "@/lib/contact-list";
 
 type SaveContactResult = { ok: true; id: number } | { ok: false; errors: ContactFormErrors };
 
 type AddNoteResult = { ok: true } | { ok: false; error: string };
+
+/** The part of the contact list that follows `cursor`: the list asks for it on scroll. */
+export async function loadContactsPage(cursor: unknown, limit: unknown): Promise<ContactsPage> {
+  return listContactsPage(contactCursorSchema.parse(cursor), contactsLimitSchema.parse(limit));
+}
 
 export async function createContact(input: unknown): Promise<SaveContactResult> {
   const parsed = contactInputSchema.safeParse(input);

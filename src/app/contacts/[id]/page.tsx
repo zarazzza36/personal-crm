@@ -20,7 +20,7 @@ export default function ContactPage({ params }: PageProps<"/contacts/[id]">) {
     <main className="mx-auto w-full max-w-2xl px-4 pt-7 pb-16">
       <Link
         href="/"
-        className="-ml-1 inline-flex items-center gap-1.5 rounded-md px-1 text-[13px] text-muted-foreground outline-none hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+        className="-ml-1 inline-flex items-center gap-1.5 rounded-md px-1 text-13 text-muted-foreground outline-none hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
       >
         <ArrowLeftIcon aria-hidden className="size-4" />
         Все контакты
@@ -47,9 +47,9 @@ async function ContactCard({ params }: { params: Params }) {
   return (
     <>
       <header className="mt-7 flex flex-wrap items-start gap-4">
-        <ContactAvatar name={contact.name} className="size-16 rounded-[14px] text-base" />
+        <ContactAvatar name={contact.name} className="size-16 rounded-14 text-base" />
         <div className="min-w-0 flex-1">
-          <h1 className="font-heading text-[26px] leading-[1.12] font-bold tracking-[-0.01em] break-words sm:text-[32px]">
+          <h1 className="font-heading text-26 leading-h1 font-bold tracking-heading break-words sm:text-32">
             {contact.name}
           </h1>
           {contact.about && <p className="mt-2 text-muted-foreground">{contact.about}</p>}
@@ -62,7 +62,7 @@ async function ContactCard({ params }: { params: Params }) {
       </header>
 
       {/* A light card on the dark page, like the contact card on the landing */}
-      <div className="mt-8 grid gap-5 rounded-[18px] bg-paper p-5 text-ink shadow-card sm:gap-6 sm:p-7">
+      <div className="mt-8 grid gap-5 rounded-18 bg-paper p-5 text-ink shadow-card sm:gap-6 sm:p-7">
         <Details>
           <Detail label="Откуда знакомы">{contact.howWeMet}</Detail>
           <Detail label="Телефон">
@@ -93,7 +93,7 @@ async function ContactCard({ params }: { params: Params }) {
       </div>
 
       <section className="mt-12" aria-labelledby="notes-heading">
-        <h2 id="notes-heading" className="font-heading text-[28px] font-bold tracking-[-0.01em]">
+        <h2 id="notes-heading" className="font-heading text-28 font-bold tracking-heading">
           Заметки
         </h2>
         <div className="mt-4">
@@ -102,10 +102,10 @@ async function ContactCard({ params }: { params: Params }) {
         {notes.length > 0 ? (
           <ul className="mt-6 grid gap-2.5" aria-label="Заметки о контакте">
             {notes.map((note) => (
-              <li key={note.id} className="rounded-[16px] bg-asphalt p-5">
+              <li key={note.id} className="rounded-16 bg-asphalt p-5">
                 <time
                   dateTime={note.createdAt.toISOString()}
-                  className="text-xs tracking-[0.08em] text-accent"
+                  className="text-xs tracking-label text-accent"
                 >
                   {formatDateTime(note.createdAt)}
                 </time>
@@ -128,7 +128,7 @@ function Details({ className, children }: { className?: string; children: React.
   return (
     <dl
       className={cn(
-        "grid gap-x-8 gap-y-1.5 sm:grid-cols-[10rem_1fr] sm:items-baseline sm:gap-y-4",
+        "grid gap-x-8 gap-y-1.5 sm:grid-cols-[--spacing(40)_1fr] sm:items-baseline sm:gap-y-4",
         className,
       )}
     >
@@ -140,7 +140,7 @@ function Details({ className, children }: { className?: string; children: React.
 function Detail({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <>
-      <dt className="text-[11px] tracking-[0.08em] text-card-label uppercase">{label}</dt>
+      <dt className="text-11 tracking-label text-card-label uppercase">{label}</dt>
       <dd className="min-w-0 not-last:mb-3 sm:not-last:mb-0">
         {children || <span className="text-card-label">не указано</span>}
       </dd>
@@ -152,13 +152,13 @@ function ContactFallback() {
   return (
     <div className="mt-7 animate-pulse" aria-busy aria-label="Загрузка контакта">
       <div className="flex items-center gap-4">
-        <span className="size-16 rounded-[14px] bg-muted" />
+        <span className="size-16 rounded-14 bg-muted" />
         <span className="grid flex-1 gap-2">
           <span className="h-7 w-56 max-w-full rounded bg-muted" />
           <span className="h-4 w-72 max-w-full rounded bg-muted" />
         </span>
       </div>
-      <div className="mt-8 h-72 rounded-[18px] bg-muted" />
+      <div className="mt-8 h-72 rounded-18 bg-muted" />
     </div>
   );
 }

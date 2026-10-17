@@ -58,7 +58,7 @@ async function Contacts({ searchParams }: { searchParams: SearchParams }) {
             <div className="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-baseline sm:gap-3">
               <PageTitle />
               <span
-                className="truncate text-xs tracking-[0.08em] text-dim uppercase"
+                className="truncate text-xs tracking-label text-dim uppercase"
                 data-testid="contacts-count"
               >
                 {query
@@ -90,7 +90,7 @@ async function Contacts({ searchParams }: { searchParams: SearchParams }) {
 // No yellow square here: on the landing it belongs to the logo only.
 function PageTitle() {
   return (
-    <h1 className="font-heading text-[22px] font-bold tracking-[-0.01em] whitespace-nowrap sm:text-[28px]">
+    <h1 className="font-heading text-22 font-bold tracking-heading whitespace-nowrap sm:text-28">
       Контакты
     </h1>
   );
@@ -111,7 +111,7 @@ function ContactsFallback() {
       <ul className={`${COLUMN} divide-y`}>
         {Array.from({ length: 8 }, (_, index) => (
           <li key={index} className="flex animate-pulse items-center gap-3.5 py-3">
-            <span className="size-10 rounded-[10px] bg-muted" />
+            <span className="size-10 rounded-10 bg-muted" />
             <span className="grid flex-1 gap-2">
               <span className="h-4 w-40 rounded bg-muted" />
               <span className="h-3 w-64 max-w-full rounded bg-muted" />

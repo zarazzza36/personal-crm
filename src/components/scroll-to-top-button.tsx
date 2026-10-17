@@ -27,7 +27,7 @@ export function ScrollToTopButton() {
       size="icon-lg"
       onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
       aria-label="В начало списка"
-      className="fixed right-4 bottom-4 z-20 rounded-[14px] shadow-hard"
+      className="fixed right-4 bottom-4 z-20 rounded-14 shadow-hard"
     >
       <ArrowUpIcon aria-hidden className="size-5" />
     </Button>

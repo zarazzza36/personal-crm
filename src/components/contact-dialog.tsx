@@ -72,7 +72,7 @@ export function AddContactButton() {
           Добавить<span className="hidden sm:inline"> контакт</span>
         </span>
       </DialogTrigger>
-      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-md">
+      <DialogContent className="max-h-dialog overflow-y-auto sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Новый контакт</DialogTitle>
         </DialogHeader>
@@ -91,7 +91,7 @@ export function EditContactButton({ contact }: { contact: EditableContact }) {
         <PencilIcon data-icon="inline-start" />
         Изменить
       </DialogTrigger>
-      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-md">
+      <DialogContent className="max-h-dialog overflow-y-auto sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Изменить контакт</DialogTitle>
         </DialogHeader>

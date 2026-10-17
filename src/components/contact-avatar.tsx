@@ -30,7 +30,7 @@ export function ContactAvatar({ name, className }: { name: string; className?: s
     <span
       aria-hidden
       className={cn(
-        "flex size-10 shrink-0 items-center justify-center rounded-[10px] font-display text-xs font-medium select-none",
+        "flex size-10 shrink-0 items-center justify-center rounded-10 font-display text-xs font-medium select-none",
         colorFor(name),
         className,
       )}

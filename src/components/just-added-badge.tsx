@@ -20,7 +20,7 @@ export function JustAddedBadge() {
   return (
     <span
       ref={badgeRef}
-      className="shrink-0 rounded-full bg-accent px-2.5 py-0.5 text-[11px] font-medium text-ink"
+      className="shrink-0 rounded-full bg-accent px-2.5 py-0.5 text-11 font-medium text-ink"
     >
       Только что добавлен
     </span>

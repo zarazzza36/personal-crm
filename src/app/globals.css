@@ -4,7 +4,12 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* The landing's palette and shadows, see personal-crm-landing/src/styles/tokens.css */
+/*
+ * The landing's design tokens, see personal-crm-landing/src/styles/tokens.css.
+ * As there, the number in a name is the size in px: text-15 is 15px, rounded-18 is 18px.
+ * New font size, radius, tracking, leading, shadow or container names also go
+ * into src/lib/utils.ts, so that merging classes recognizes them.
+ */
 @theme static {
   --color-ink: #161719;
   --color-paper: #f2f0ea;
@@ -13,9 +18,35 @@
   --color-card-label: #6b6960;
   --color-grid-line: rgb(255 255 255 / 0.04);
 
+  --text-11: 11px;
+  --text-13: 13px;
+  --text-15: 15px;
+  --text-22: 22px;
+  --text-26: 26px;
+  --text-28: 28px;
+  --text-32: 32px;
+
+  --leading-h1: 1.12;
+
+  --tracking-heading: -0.01em;
+  --tracking-logo: 0.02em;
+  --tracking-label: 0.08em;
+
+  --radius-3: 3px;
+  --radius-10: 10px;
+  --radius-14: 14px;
+  --radius-16: 16px;
+  --radius-18: 18px;
+
   --shadow-card: 0 16px 40px rgb(0 0 0 / 0.45);
   --shadow-card-lg: 0 20px 50px rgb(0 0 0 / 0.45);
   --shadow-hard: 6px 7px 0 rgb(0 0 0 / 0.35);
+
+  /* The landing's header width: 1280px of content and 48px of padding on each side */
+  --container-landing: 1376px;
+
+  --grid-size: 39px;
+  --grid-size-lg: 48px;
 }
 
 @theme inline {
@@ -53,6 +84,7 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  --color-secondary-hover: color-mix(in oklch, var(--secondary), var(--foreground) 5%);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -139,11 +171,20 @@
   background-image:
     linear-gradient(var(--color-grid-line) 1px, transparent 1px),
     linear-gradient(90deg, var(--color-grid-line) 1px, transparent 1px);
-  background-size: 39px 39px;
+  background-size: var(--grid-size) var(--grid-size);
 
   @variant lg {
-    background-size: 48px 48px;
+    background-size: var(--grid-size-lg) var(--grid-size-lg);
   }
+}
+
+/* A dialog keeps --spacing(4) from each edge of the screen and scrolls inside when taller */
+@utility max-w-dialog {
+  max-width: calc(100% - --spacing(8));
+}
+
+@utility max-h-dialog {
+  max-height: calc(100dvh - --spacing(8));
 }
 
 @layer base {

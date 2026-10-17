@@ -139,7 +139,7 @@ export function ContactList({ firstPage, addedContact }: ContactListProps) {
       {hasMore && (
         <div
           ref={endRef}
-          className="flex min-h-16 items-center justify-center gap-3 text-[13px] text-dim"
+          className="flex min-h-16 items-center justify-center gap-3 text-13 text-dim"
         >
           {hasFailed ? (
             <>
@@ -188,15 +188,15 @@ const ContactRow = memo(function ContactRow({
         <ContactAvatar name={contact.name} />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="truncate font-display text-[15px] font-medium">{contact.name}</span>
+            <span className="truncate font-display text-15 font-medium">{contact.name}</span>
             {isAdded && <JustAddedBadge />}
           </div>
           {contact.about && (
-            <div className="mt-0.5 truncate text-[13px] text-muted-foreground">{contact.about}</div>
+            <div className="mt-0.5 truncate text-13 text-muted-foreground">{contact.about}</div>
           )}
           {truck && <div className="mt-1 truncate text-xs text-accent">{truck}</div>}
         </div>
-        <div className="hidden shrink-0 text-right text-[13px] text-dim sm:block">
+        <div className="hidden shrink-0 text-right text-13 text-dim sm:block">
           {contact.phone && <div>{contact.phone}</div>}
           {contact.email && <div>{contact.email}</div>}
         </div>

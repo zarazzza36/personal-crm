@@ -87,14 +87,10 @@ async function Contacts({ searchParams }: { searchParams: SearchParams }) {
   );
 }
 
-/** The heading with the landing's yellow square in front of it. */
+// No yellow square here: on the landing it belongs to the logo only.
 function PageTitle() {
   return (
     <h1 className="font-heading text-[22px] font-bold tracking-[-0.01em] whitespace-nowrap sm:text-[28px]">
-      <span
-        aria-hidden
-        className="mr-2.5 inline-block size-3 rounded-[3px] bg-accent align-middle sm:mr-3 sm:size-3.5"
-      />
       Контакты
     </h1>
   );

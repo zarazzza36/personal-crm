@@ -137,7 +137,7 @@ export function ContactList({ firstPage, addedContact }: ContactListProps) {
       {hasMore && (
         <div
           ref={endRef}
-          className="flex min-h-16 items-center justify-center gap-3 text-sm text-muted-foreground"
+          className="flex min-h-16 items-center justify-center gap-3 text-[13px] text-dim"
         >
           {hasFailed ? (
             <>
@@ -171,21 +171,21 @@ const ContactRow = memo(function ContactRow({
       <Link
         href={`/contacts/${contact.id}`}
         className={cn(
-          "-mx-2 flex items-center gap-3 rounded-lg px-2 py-2.5 outline-none hover:bg-muted focus-visible:bg-muted",
-          isAdded && "bg-amber-50 hover:bg-amber-100",
+          "-mx-3 flex items-center gap-3.5 rounded-xl px-3 py-3 outline-none hover:bg-muted focus-visible:bg-muted",
+          isAdded && "bg-accent/10 hover:bg-accent/15",
         )}
       >
         <ContactAvatar name={contact.name} />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="truncate font-medium">{contact.name}</span>
+            <span className="truncate font-display text-[15px] font-medium">{contact.name}</span>
             {isAdded && <JustAddedBadge />}
           </div>
           {contact.about && (
-            <div className="truncate text-sm text-muted-foreground">{contact.about}</div>
+            <div className="mt-0.5 truncate text-[13px] text-muted-foreground">{contact.about}</div>
           )}
         </div>
-        <div className="hidden shrink-0 text-right text-sm text-muted-foreground sm:block">
+        <div className="hidden shrink-0 text-right text-[13px] text-dim sm:block">
           {contact.phone && <div>{contact.phone}</div>}
           {contact.email && <div>{contact.email}</div>}
         </div>

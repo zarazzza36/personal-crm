@@ -29,7 +29,7 @@ export function NoteForm({ contactId }: { contactId: number }) {
         aria-label="Новая заметка"
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? errorId : undefined}
-        className="min-h-24"
+        className="min-h-28"
         required
       />
       {error && (

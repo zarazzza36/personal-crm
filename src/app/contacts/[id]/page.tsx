@@ -15,10 +15,10 @@ type Params = PageProps<"/contacts/[id]">["params"];
 
 export default function ContactPage({ params }: PageProps<"/contacts/[id]">) {
   return (
-    <main className="mx-auto w-full max-w-2xl px-4 pt-6 pb-16">
+    <main className="mx-auto w-full max-w-2xl px-4 pt-7 pb-16">
       <Link
         href="/"
-        className="-ml-1 inline-flex items-center gap-1.5 rounded-md px-1 text-sm text-muted-foreground hover:text-foreground"
+        className="-ml-1 inline-flex items-center gap-1.5 rounded-md px-1 text-[13px] text-muted-foreground outline-none hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
       >
         <ArrowLeftIcon aria-hidden className="size-4" />
         Все контакты
@@ -44,13 +44,13 @@ async function ContactCard({ params }: { params: Params }) {
 
   return (
     <>
-      <header className="mt-6 flex flex-wrap items-start gap-4">
-        <ContactAvatar name={contact.name} className="size-14 text-lg" />
+      <header className="mt-7 flex flex-wrap items-start gap-4">
+        <ContactAvatar name={contact.name} className="size-16 rounded-[14px] text-base" />
         <div className="min-w-0 flex-1">
-          <h1 className="font-heading text-2xl font-semibold tracking-tight break-words">
+          <h1 className="font-heading text-[26px] leading-[1.12] font-bold tracking-[-0.01em] break-words sm:text-[32px]">
             {contact.name}
           </h1>
-          {contact.about && <p className="mt-1 text-muted-foreground">{contact.about}</p>}
+          {contact.about && <p className="mt-2 text-muted-foreground">{contact.about}</p>}
         </div>
         {/* On a narrow screen the buttons move to their own row under the name. */}
         <div className="flex w-full gap-2 sm:w-auto">
@@ -59,7 +59,8 @@ async function ContactCard({ params }: { params: Params }) {
         </div>
       </header>
 
-      <dl className="mt-6 grid gap-x-6 gap-y-3 rounded-xl border p-4 sm:grid-cols-[auto_1fr]">
+      {/* A light card on the dark page, like the contact card on the landing */}
+      <dl className="mt-8 grid gap-x-8 gap-y-1.5 rounded-[18px] bg-paper p-5 text-ink shadow-card sm:grid-cols-[auto_1fr] sm:items-baseline sm:gap-y-4 sm:p-7">
         <Detail label="Откуда знакомы">{contact.howWeMet}</Detail>
         <Detail label="Телефон">
           {contact.phone && (
@@ -77,29 +78,29 @@ async function ContactCard({ params }: { params: Params }) {
         </Detail>
       </dl>
 
-      <section className="mt-8" aria-labelledby="notes-heading">
-        <h2 id="notes-heading" className="font-heading text-lg font-semibold">
+      <section className="mt-12" aria-labelledby="notes-heading">
+        <h2 id="notes-heading" className="font-heading text-[28px] font-bold tracking-[-0.01em]">
           Заметки
         </h2>
-        <div className="mt-3">
+        <div className="mt-4">
           <NoteForm contactId={contact.id} />
         </div>
         {notes.length > 0 ? (
-          <ul className="mt-6 grid gap-3" aria-label="Заметки о контакте">
+          <ul className="mt-6 grid gap-2.5" aria-label="Заметки о контакте">
             {notes.map((note) => (
-              <li key={note.id} className="rounded-xl border p-4">
+              <li key={note.id} className="rounded-[16px] bg-asphalt p-5">
                 <time
                   dateTime={note.createdAt.toISOString()}
-                  className="text-xs text-muted-foreground"
+                  className="text-xs tracking-[0.08em] text-accent"
                 >
                   {formatDateTime(note.createdAt)}
                 </time>
-                <p className="mt-1 break-words whitespace-pre-wrap">{note.body}</p>
+                <p className="mt-2 leading-normal break-words whitespace-pre-wrap">{note.body}</p>
               </li>
             ))}
           </ul>
         ) : (
-          <p className="mt-6 text-sm text-muted-foreground">
+          <p className="mt-6 text-muted-foreground">
             Заметок пока нет. Запишите первую после разговора.
           </p>
         )}
@@ -111,9 +112,9 @@ async function ContactCard({ params }: { params: Params }) {
 function Detail({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <>
-      <dt className="text-sm text-muted-foreground">{label}</dt>
-      <dd className="min-w-0">
-        {children || <span className="text-muted-foreground">не указано</span>}
+      <dt className="text-[11px] tracking-[0.08em] text-card-label uppercase">{label}</dt>
+      <dd className="min-w-0 not-last:mb-3 sm:not-last:mb-0">
+        {children || <span className="text-card-label">не указано</span>}
       </dd>
     </>
   );
@@ -121,15 +122,15 @@ function Detail({ label, children }: { label: string; children: React.ReactNode 
 
 function ContactFallback() {
   return (
-    <div className="mt-6 animate-pulse" aria-busy aria-label="Загрузка контакта">
+    <div className="mt-7 animate-pulse" aria-busy aria-label="Загрузка контакта">
       <div className="flex items-center gap-4">
-        <span className="size-14 rounded-full bg-muted" />
+        <span className="size-16 rounded-[14px] bg-muted" />
         <span className="grid flex-1 gap-2">
-          <span className="h-6 w-56 max-w-full rounded bg-muted" />
+          <span className="h-7 w-56 max-w-full rounded bg-muted" />
           <span className="h-4 w-72 max-w-full rounded bg-muted" />
         </span>
       </div>
-      <div className="mt-6 h-32 rounded-xl bg-muted" />
+      <div className="mt-8 h-40 rounded-[18px] bg-muted" />
     </div>
   );
 }

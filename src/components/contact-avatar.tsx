@@ -1,14 +1,12 @@
 import { cn } from "@/lib/utils";
 
+// The landing's colors; the dashed one repeats its chips.
 const palette = [
-  "bg-rose-100 text-rose-800",
-  "bg-amber-100 text-amber-800",
-  "bg-emerald-100 text-emerald-800",
-  "bg-sky-100 text-sky-800",
-  "bg-violet-100 text-violet-800",
-  "bg-teal-100 text-teal-800",
-  "bg-orange-100 text-orange-800",
-  "bg-indigo-100 text-indigo-800",
+  "bg-accent text-ink",
+  "bg-paper text-ink",
+  "bg-asphalt text-paper",
+  "bg-asphalt text-accent",
+  "border border-dashed border-paper/35 text-muted-foreground",
 ];
 
 function initials(name: string) {
@@ -32,7 +30,7 @@ export function ContactAvatar({ name, className }: { name: string; className?: s
     <span
       aria-hidden
       className={cn(
-        "flex size-10 shrink-0 items-center justify-center rounded-full text-sm font-medium select-none",
+        "flex size-10 shrink-0 items-center justify-center rounded-[10px] font-display text-xs font-medium select-none",
         colorFor(name),
         className,
       )}

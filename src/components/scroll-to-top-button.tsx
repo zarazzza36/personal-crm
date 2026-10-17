@@ -24,11 +24,10 @@ export function ScrollToTopButton() {
 
   return (
     <Button
-      variant="outline"
       size="icon-lg"
       onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
       aria-label="В начало списка"
-      className="fixed right-4 bottom-4 z-20 size-11 rounded-full text-black shadow-md"
+      className="fixed right-4 bottom-4 z-20 rounded-[14px] shadow-hard"
     >
       <ArrowUpIcon aria-hidden className="size-5" />
     </Button>

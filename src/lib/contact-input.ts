@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { bodyTypes } from "./body-types";
+
 const optionalText = (maxLength: number) =>
   z
     .string()
@@ -7,7 +9,33 @@ const optionalText = (maxLength: number) =>
     .max(maxLength, `Не длиннее ${maxLength} символов`)
     .transform((value) => (value === "" ? null : value));
 
+// The database keeps two decimal places: "1,5" and "82.25" fit, "1,555" does not.
+const optionalAmount = (max: number) =>
+  z
+    .string()
+    .trim()
+    .transform((value, context) => {
+      if (value === "") return null;
+
+      const normalized = value.replace(",", ".");
+      if (!/^\d+(\.\d{1,2})?$/.test(normalized)) {
+        context.addIssue({ code: "custom", message: "Укажите число, например 1,5" });
+        return z.NEVER;
+      }
+      const amount = Number(normalized);
+      if (amount <= 0 || amount > max) {
+        context.addIssue({ code: "custom", message: `Больше нуля и не больше ${max}` });
+        return z.NEVER;
+      }
+      return amount;
+    });
+
 export const contactIdSchema = z.number().int().positive();
+
+/** Contact id taken from a URL; `null` unless it is a plain positive integer. */
+export function parseContactId(value: string | undefined) {
+  return value !== undefined && /^[1-9]\d{0,8}$/.test(value) ? Number(value) : null;
+}
 
 export const contactInputSchema = z.object({
   name: z.string().trim().min(1, "Укажите имя").max(200, "Не длиннее 200 символов"),
@@ -18,6 +46,12 @@ export const contactInputSchema = z.object({
     (value) => value === null || /^\S+@\S+\.\S+$/.test(value),
     "Проверьте адрес почты",
   ),
+  capacityTons: optionalAmount(999),
+  volumeCubicMeters: optionalAmount(999),
+  bodyType: z
+    .string()
+    .transform((value) => (value === "" ? null : value))
+    .pipe(z.enum(bodyTypes, "Выберите тип кузова из списка").nullable()),
 });
 
 export const noteInputSchema = z.object({

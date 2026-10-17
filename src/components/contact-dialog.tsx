@@ -18,6 +18,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { bodyTypeLabels, bodyTypes, type BodyType } from "@/lib/body-types";
+import {
   contactFormFields,
   type ContactFormErrors,
   type ContactFormValues,
@@ -30,11 +38,28 @@ type EditableContact = {
   howWeMet: string | null;
   phone: string | null;
   email: string | null;
+  capacityTons: number | null;
+  volumeCubicMeters: number | null;
+  bodyType: BodyType | null;
 };
 
 type FormState = { values: ContactFormValues; errors: ContactFormErrors };
 
-const emptyValues: ContactFormValues = { name: "", about: "", howWeMet: "", phone: "", email: "" };
+const emptyValues: ContactFormValues = {
+  name: "",
+  about: "",
+  howWeMet: "",
+  phone: "",
+  email: "",
+  capacityTons: "",
+  volumeCubicMeters: "",
+  bodyType: "",
+};
+
+// The form shows a decimal comma, as people write it: "1,5".
+function amountToText(value: number | null) {
+  return value === null ? "" : String(value).replace(".", ",");
+}
 
 export function AddContactButton() {
   const [open, setOpen] = useState(false);
@@ -47,7 +72,7 @@ export function AddContactButton() {
           Добавить<span className="hidden sm:inline"> контакт</span>
         </span>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-h-dialog overflow-y-auto sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Новый контакт</DialogTitle>
         </DialogHeader>
@@ -66,7 +91,7 @@ export function EditContactButton({ contact }: { contact: EditableContact }) {
         <PencilIcon data-icon="inline-start" />
         Изменить
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-h-dialog overflow-y-auto sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Изменить контакт</DialogTitle>
         </DialogHeader>
@@ -108,6 +133,9 @@ function ContactForm({ contact, onSaved }: { contact?: EditableContact; onSaved:
             howWeMet: contact.howWeMet ?? "",
             phone: contact.phone ?? "",
             email: contact.email ?? "",
+            capacityTons: amountToText(contact.capacityTons),
+            volumeCubicMeters: amountToText(contact.volumeCubicMeters),
+            bodyType: contact.bodyType ?? "",
           }
         : emptyValues,
       errors: {},
@@ -154,6 +182,25 @@ function ContactForm({ contact, onSaved }: { contact?: EditableContact; onSaved:
         defaultValue={values.email}
         error={errors.email}
       />
+      <div className="grid grid-cols-2 gap-4">
+        <Field
+          name="capacityTons"
+          label="Тонны"
+          inputMode="decimal"
+          placeholder="1,5"
+          defaultValue={values.capacityTons}
+          error={errors.capacityTons}
+        />
+        <Field
+          name="volumeCubicMeters"
+          label="Кубы"
+          inputMode="decimal"
+          placeholder="16"
+          defaultValue={values.volumeCubicMeters}
+          error={errors.volumeCubicMeters}
+        />
+      </div>
+      <BodyTypeField defaultValue={values.bodyType} error={errors.bodyType} />
       <DialogFooter>
         <DialogClose render={<Button type="button" variant="outline" />}>Отмена</DialogClose>
         <Button type="submit" disabled={isPending}>
@@ -186,6 +233,48 @@ function Field({
         aria-describedby={error ? errorId : undefined}
         {...inputProps}
       />
+      {error && (
+        <p id={errorId} className="text-sm text-destructive">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
+// "Не указан" clears the choice: the form then sends an empty value, as for an empty field.
+const bodyTypeItems = [
+  { value: null, label: "Не указан" },
+  ...bodyTypes.map((type) => ({ value: type, label: bodyTypeLabels[type] })),
+];
+
+// Not the browser's own list: that one opens light on Windows, with the light text unreadable.
+function BodyTypeField({ defaultValue, error }: { defaultValue: string; error?: string }) {
+  const id = useId();
+  const errorId = `${id}-error`;
+
+  return (
+    <div className="grid gap-1.5">
+      <Label htmlFor={id}>Тип кузова</Label>
+      <Select name="bodyType" items={bodyTypeItems} defaultValue={defaultValue || null}>
+        <SelectTrigger
+          id={id}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? errorId : undefined}
+          className="w-full"
+        >
+          <SelectValue placeholder="Не указан" />
+        </SelectTrigger>
+        {/* Opens below the field, or above it when there is more room there:
+            the whole list fits even near the bottom of a short screen. */}
+        <SelectContent alignItemWithTrigger={false}>
+          {bodyTypeItems.map((item) => (
+            <SelectItem key={item.value ?? "none"} value={item.value}>
+              {item.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
       {error && (
         <p id={errorId} className="text-sm text-destructive">
           {error}

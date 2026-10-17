@@ -6,15 +6,14 @@ import { config } from "dotenv";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 
+import type { BodyType } from "../lib/body-types";
 import { contacts, notes } from "./schema";
+import { generateAbout, type Gender } from "./seed-about";
 
 config({ quiet: true });
 
 const CONTACT_COUNT = 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
-
-type Gender = "male" | "female";
-type Gendered = string | { male: string; female: string };
 
 const maleFirstNames = [
   "Александр", "Алексей", "Андрей", "Антон", "Артём", "Борис", "Вадим", "Валерий", "Василий",
@@ -68,59 +67,6 @@ const surnames = [
   "Жуковский", "Белинский", "Заболоцкий",
   "Шевченко", "Бондаренко", "Ткаченко", "Кравченко", "Коваленко", "Савченко", "Руденко",
   "Мельник", "Ким", "Цой",
-];
-
-const about: Gendered[] = [
-  "Дизайнер интерфейсов, фрилансер",
-  "Юрист по недвижимости",
-  "Стоматолог в клинике у дома",
-  "Бухгалтер, ведёт небольшие фирмы",
-  "Автомеханик в сервисе на Ленина",
-  "Тренер по плаванию",
-  "Фотограф, снимает свадьбы и портреты",
-  "Репетитор по английскому",
-  "Программист в банке",
-  "Врач-терапевт",
-  "Ветеринар",
-  "Архитектор, проектирует частные дома",
-  "Маркетолог в IT-компании",
-  "Менеджер проектов в строительной фирме",
-  "Преподаватель в университете",
-  "Журналист, пишет про технологии",
-  "Нотариус",
-  "Страховой агент",
-  "Турагент, подбирает нестандартные маршруты",
-  "Парикмахер",
-  "Электрик",
-  "Риелтор",
-  "Психолог",
-  "Финансовый консультант",
-  "Организатор мероприятий",
-  "Флорист",
-  "Переводчик с немецкого",
-  "Экскурсовод",
-  "Шеф-повар в ресторане",
-  "HR в крупной компании",
-  "Инвестор, вкладывается в стартапы",
-  "Аналитик данных",
-  "Инженер-строитель",
-  "Мастер по ремонту техники",
-  "Инструктор по йоге",
-  { male: "Владелец кофейни", female: "Владелица кофейни" },
-  { male: "Сосед по лестничной клетке", female: "Соседка по лестничной клетке" },
-  { male: "Сосед по даче", female: "Соседка по даче" },
-  { male: "Одноклассник", female: "Одноклассница" },
-  { male: "Однокурсник", female: "Однокурсница" },
-  { male: "Бывший коллега", female: "Бывшая коллега" },
-  { male: "Друг детства", female: "Подруга детства" },
-  { male: "Двоюродный брат", female: "Двоюродная сестра" },
-  { male: "Знакомый по спортзалу", female: "Знакомая по спортзалу" },
-  { male: "Школьный учитель", female: "Школьная учительница" },
-  { male: "Заказчик по проекту сайта", female: "Заказчица по проекту сайта" },
-  { male: "Партнёр по теннису", female: "Партнёрша по теннису" },
-  { male: "Муж сестры", female: "Жена брата" },
-  { male: "Давний приятель", female: "Давняя приятельница" },
-  "Коллега из соседнего отдела",
 ];
 
 const howWeMet = [
@@ -198,6 +144,20 @@ const noteBodies = [
 
 const emailDomains = ["example.com", "example.org", "example.net"];
 
+// Typical trucks with the body types they usually come with.
+const trucks: { tons: number; cubicMeters: number | null; bodyTypes: BodyType[] }[] = [
+  { tons: 1.5, cubicMeters: 16, bodyTypes: ["tent", "van", "isothermal"] }, // "Газель"
+  { tons: 5, cubicMeters: 36, bodyTypes: ["tent", "refrigerator", "isothermal", "flatbed"] },
+  { tons: 10, cubicMeters: 50, bodyTypes: ["tent", "refrigerator", "flatbed"] },
+  { tons: 20, cubicMeters: 82, bodyTypes: ["tent", "refrigerator", "isothermal", "van"] },
+  { tons: 20, cubicMeters: 120, bodyTypes: ["tent"] }, // "Джамбо"
+  { tons: 24, cubicMeters: 33, bodyTypes: ["container_carrier"] },
+  { tons: 25, cubicMeters: 20, bodyTypes: ["dump_truck"] },
+  { tons: 40, cubicMeters: null, bodyTypes: ["lowboy"] },
+];
+
+const TRUCK_SHARE = 0.35;
+
 const translitMap: Record<string, string> = {
   а: "a", б: "b", в: "v", г: "g", д: "d", е: "e", ё: "e", ж: "zh", з: "z", и: "i", й: "y",
   к: "k", л: "l", м: "m", н: "n", о: "o", п: "p", р: "r", с: "s", т: "t", у: "u", ф: "f",
@@ -218,8 +178,23 @@ function createRandom(seed: number) {
 const random = createRandom(20261010);
 const chance = (probability: number) => random() < probability;
 const randomInt = (min: number, max: number) => min + Math.floor(random() * (max - min + 1));
-const pick = <T>(items: readonly T[]) => items[Math.floor(random() * items.length)];
+const pick = <T>(items: readonly T[], next = random) => items[Math.floor(next() * items.length)];
 const digits = (count: number) => Array.from({ length: count }, () => randomInt(0, 9)).join("");
+
+// Trucks draw from their own generator, so the people and notes stay what they were before.
+const truckRandom = createRandom(20261017);
+
+function generateTruck() {
+  if (truckRandom() >= TRUCK_SHARE) {
+    return { capacityTons: null, volumeCubicMeters: null, bodyType: null };
+  }
+  const truck = pick(trucks, truckRandom);
+  return {
+    capacityTons: truck.tons,
+    volumeCubicMeters: truck.cubicMeters,
+    bodyType: pick(truck.bodyTypes, truckRandom),
+  };
+}
 
 function feminineSurname(surname: string) {
   if (/(ов|ев|ёв|ин|ын)$/.test(surname)) return `${surname}а`;
@@ -229,10 +204,6 @@ function feminineSurname(surname: string) {
 
 function transliterate(text: string) {
   return Array.from(text.toLowerCase(), (char) => translitMap[char] ?? char).join("");
-}
-
-function resolve(value: Gendered, gender: Gender) {
-  return typeof value === "string" ? value : value[gender];
 }
 
 function generateContacts(now: number) {
@@ -249,15 +220,18 @@ function generateContacts(now: number) {
     usedNames.add(name);
 
     const createdAt = new Date(now - randomInt(1, 900) * DAY_MS - randomInt(0, DAY_MS));
+    // "Кто это" follows the truck: a lowboy owner is not described as a tyre fitter.
+    const truck = generateTruck();
 
     result.push({
       name,
-      about: chance(0.9) ? resolve(pick(about), gender) : null,
+      about: chance(0.9) ? generateAbout(gender, truck, random) : null,
       howWeMet: chance(0.85) ? pick(howWeMet) : null,
       phone: chance(0.9) ? `+7 000 ${digits(3)}-${digits(2)}-${digits(2)}` : null,
       email: chance(0.7)
         ? `${transliterate(firstName)}.${transliterate(lastName)}@${pick(emailDomains)}`
         : null,
+      ...truck,
       createdAt,
     });
   }

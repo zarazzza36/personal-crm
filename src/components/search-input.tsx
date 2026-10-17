@@ -56,7 +56,7 @@ export function SearchInput({ query }: { query: string }) {
     <div className="relative">
       <Icon
         aria-hidden
-        className={`pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground ${
+        className={`pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-dim ${
           isPending ? "animate-spin" : ""
         }`}
       />
@@ -66,10 +66,10 @@ export function SearchInput({ query }: { query: string }) {
         name="q"
         defaultValue={query}
         onChange={(event) => scheduleSearch(event.target.value)}
-        placeholder="Поиск по имени"
-        aria-label="Поиск по имени"
+        placeholder="Имя, кузов, «от 5 тонн»"
+        aria-label="Поиск по имени, типу кузова, тоннам и кубам"
         autoComplete="off"
-        className="h-10 pl-9"
+        className="h-12 pl-11"
       />
     </div>
   );

@@ -8,14 +8,12 @@ import postgres from "postgres";
 
 import type { BodyType } from "../lib/body-types";
 import { contacts, notes } from "./schema";
+import { generateAbout, type Gender } from "./seed-about";
 
 config({ quiet: true });
 
 const CONTACT_COUNT = 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
-
-type Gender = "male" | "female";
-type Gendered = string | { male: string; female: string };
 
 const maleFirstNames = [
   "Александр", "Алексей", "Андрей", "Антон", "Артём", "Борис", "Вадим", "Валерий", "Василий",
@@ -69,59 +67,6 @@ const surnames = [
   "Жуковский", "Белинский", "Заболоцкий",
   "Шевченко", "Бондаренко", "Ткаченко", "Кравченко", "Коваленко", "Савченко", "Руденко",
   "Мельник", "Ким", "Цой",
-];
-
-const about: Gendered[] = [
-  "Дизайнер интерфейсов, фрилансер",
-  "Юрист по недвижимости",
-  "Стоматолог в клинике у дома",
-  "Бухгалтер, ведёт небольшие фирмы",
-  "Автомеханик в сервисе на Ленина",
-  "Тренер по плаванию",
-  "Фотограф, снимает свадьбы и портреты",
-  "Репетитор по английскому",
-  "Программист в банке",
-  "Врач-терапевт",
-  "Ветеринар",
-  "Архитектор, проектирует частные дома",
-  "Маркетолог в IT-компании",
-  "Менеджер проектов в строительной фирме",
-  "Преподаватель в университете",
-  "Журналист, пишет про технологии",
-  "Нотариус",
-  "Страховой агент",
-  "Турагент, подбирает нестандартные маршруты",
-  "Парикмахер",
-  "Электрик",
-  "Риелтор",
-  "Психолог",
-  "Финансовый консультант",
-  "Организатор мероприятий",
-  "Флорист",
-  "Переводчик с немецкого",
-  "Экскурсовод",
-  "Шеф-повар в ресторане",
-  "HR в крупной компании",
-  "Инвестор, вкладывается в стартапы",
-  "Аналитик данных",
-  "Инженер-строитель",
-  "Мастер по ремонту техники",
-  "Инструктор по йоге",
-  { male: "Владелец кофейни", female: "Владелица кофейни" },
-  { male: "Сосед по лестничной клетке", female: "Соседка по лестничной клетке" },
-  { male: "Сосед по даче", female: "Соседка по даче" },
-  { male: "Одноклассник", female: "Одноклассница" },
-  { male: "Однокурсник", female: "Однокурсница" },
-  { male: "Бывший коллега", female: "Бывшая коллега" },
-  { male: "Друг детства", female: "Подруга детства" },
-  { male: "Двоюродный брат", female: "Двоюродная сестра" },
-  { male: "Знакомый по спортзалу", female: "Знакомая по спортзалу" },
-  { male: "Школьный учитель", female: "Школьная учительница" },
-  { male: "Заказчик по проекту сайта", female: "Заказчица по проекту сайта" },
-  { male: "Партнёр по теннису", female: "Партнёрша по теннису" },
-  { male: "Муж сестры", female: "Жена брата" },
-  { male: "Давний приятель", female: "Давняя приятельница" },
-  "Коллега из соседнего отдела",
 ];
 
 const howWeMet = [
@@ -261,10 +206,6 @@ function transliterate(text: string) {
   return Array.from(text.toLowerCase(), (char) => translitMap[char] ?? char).join("");
 }
 
-function resolve(value: Gendered, gender: Gender) {
-  return typeof value === "string" ? value : value[gender];
-}
-
 function generateContacts(now: number) {
   const usedNames = new Set<string>();
   const result = [];
@@ -279,16 +220,18 @@ function generateContacts(now: number) {
     usedNames.add(name);
 
     const createdAt = new Date(now - randomInt(1, 900) * DAY_MS - randomInt(0, DAY_MS));
+    // "Кто это" follows the truck: a lowboy owner is not described as a tyre fitter.
+    const truck = generateTruck();
 
     result.push({
       name,
-      about: chance(0.9) ? resolve(pick(about), gender) : null,
+      about: chance(0.9) ? generateAbout(gender, truck, random) : null,
       howWeMet: chance(0.85) ? pick(howWeMet) : null,
       phone: chance(0.9) ? `+7 000 ${digits(3)}-${digits(2)}-${digits(2)}` : null,
       email: chance(0.7)
         ? `${transliterate(firstName)}.${transliterate(lastName)}@${pick(emailDomains)}`
         : null,
-      ...generateTruck(),
+      ...truck,
       createdAt,
     });
   }

@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import type { BodyType } from "./body-types";
 import { contactIdSchema } from "./contact-input";
 
 /** How many contacts the list shows at first and adds each time it is scrolled to its end. */
@@ -12,6 +13,9 @@ export type ContactListItem = {
   about: string | null;
   phone: string | null;
   email: string | null;
+  capacityTons: number | null;
+  volumeCubicMeters: number | null;
+  bodyType: BodyType | null;
 };
 
 /** A place in the alphabetical list: the contact that the loaded part ends with. */

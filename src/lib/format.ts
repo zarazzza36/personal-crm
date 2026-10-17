@@ -14,3 +14,11 @@ export function formatNumber(value: number) {
 export function formatDateTime(date: Date) {
   return dateTimeFormat.format(date);
 }
+
+export function formatTons(value: number) {
+  return `${formatNumber(value)} т`;
+}
+
+export function formatCubicMeters(value: number) {
+  return `${formatNumber(value)} м³`;
+}

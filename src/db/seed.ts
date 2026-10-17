@@ -6,6 +6,7 @@ import { config } from "dotenv";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 
+import type { BodyType } from "../lib/body-types";
 import { contacts, notes } from "./schema";
 
 config({ quiet: true });
@@ -198,6 +199,20 @@ const noteBodies = [
 
 const emailDomains = ["example.com", "example.org", "example.net"];
 
+// Typical trucks with the body types they usually come with.
+const trucks: { tons: number; cubicMeters: number | null; bodyTypes: BodyType[] }[] = [
+  { tons: 1.5, cubicMeters: 16, bodyTypes: ["tent", "van", "isothermal"] }, // "Газель"
+  { tons: 5, cubicMeters: 36, bodyTypes: ["tent", "refrigerator", "isothermal", "flatbed"] },
+  { tons: 10, cubicMeters: 50, bodyTypes: ["tent", "refrigerator", "flatbed"] },
+  { tons: 20, cubicMeters: 82, bodyTypes: ["tent", "refrigerator", "isothermal", "van"] },
+  { tons: 20, cubicMeters: 120, bodyTypes: ["tent"] }, // "Джамбо"
+  { tons: 24, cubicMeters: 33, bodyTypes: ["container_carrier"] },
+  { tons: 25, cubicMeters: 20, bodyTypes: ["dump_truck"] },
+  { tons: 40, cubicMeters: null, bodyTypes: ["lowboy"] },
+];
+
+const TRUCK_SHARE = 0.35;
+
 const translitMap: Record<string, string> = {
   а: "a", б: "b", в: "v", г: "g", д: "d", е: "e", ё: "e", ж: "zh", з: "z", и: "i", й: "y",
   к: "k", л: "l", м: "m", н: "n", о: "o", п: "p", р: "r", с: "s", т: "t", у: "u", ф: "f",
@@ -218,8 +233,23 @@ function createRandom(seed: number) {
 const random = createRandom(20261010);
 const chance = (probability: number) => random() < probability;
 const randomInt = (min: number, max: number) => min + Math.floor(random() * (max - min + 1));
-const pick = <T>(items: readonly T[]) => items[Math.floor(random() * items.length)];
+const pick = <T>(items: readonly T[], next = random) => items[Math.floor(next() * items.length)];
 const digits = (count: number) => Array.from({ length: count }, () => randomInt(0, 9)).join("");
+
+// Trucks draw from their own generator, so the people and notes stay what they were before.
+const truckRandom = createRandom(20261017);
+
+function generateTruck() {
+  if (truckRandom() >= TRUCK_SHARE) {
+    return { capacityTons: null, volumeCubicMeters: null, bodyType: null };
+  }
+  const truck = pick(trucks, truckRandom);
+  return {
+    capacityTons: truck.tons,
+    volumeCubicMeters: truck.cubicMeters,
+    bodyType: pick(truck.bodyTypes, truckRandom),
+  };
+}
 
 function feminineSurname(surname: string) {
   if (/(ов|ев|ёв|ин|ын)$/.test(surname)) return `${surname}а`;
@@ -258,6 +288,7 @@ function generateContacts(now: number) {
       email: chance(0.7)
         ? `${transliterate(firstName)}.${transliterate(lastName)}@${pick(emailDomains)}`
         : null,
+      ...generateTruck(),
       createdAt,
     });
   }

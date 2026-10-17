@@ -1,8 +1,11 @@
 import "server-only";
 
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, lte, or, sql, type SQL } from "drizzle-orm";
+import type { PgColumn } from "drizzle-orm/pg-core";
 
+import { bodyTypesMatching } from "@/lib/body-types";
 import type { ContactCursor, ContactListItem, ContactsPage } from "@/lib/contact-list";
+import { parseContactSearch, type Range } from "@/lib/contact-search";
 
 import { db } from "./index";
 import { contacts, notes } from "./schema";
@@ -13,6 +16,9 @@ const contactListColumns = {
   about: contacts.about,
   phone: contacts.phone,
   email: contacts.email,
+  capacityTons: contacts.capacityTons,
+  volumeCubicMeters: contacts.volumeCubicMeters,
+  bodyType: contacts.bodyType,
 };
 
 const nameInRussianOrder = sql`${contacts.name} collate "ru-x-icu"`;
@@ -20,27 +26,43 @@ const nameInRussianOrder = sql`${contacts.name} collate "ru-x-icu"`;
 // Russian alphabetical order; the id keeps namesakes in a fixed order.
 const alphabeticalOrder = [nameInRussianOrder, asc(contacts.id)];
 
-// Search ignores letter case and treats "ё" and "е" as the same letter.
-function normalizeForSearch(value: string) {
-  return value.toLowerCase().replaceAll("ё", "е");
-}
-
 function escapeLikePattern(value: string) {
   return value.replace(/[\\%_]/g, "\\$&");
 }
 
-/** All contacts whose name contains every word of `query`, in Russian alphabetical order. */
+/** The word is a part of the name or stands for the body type ("тент"). */
+function matchesWord(word: string) {
+  const nameMatch = sql`replace(lower(${contacts.name}), 'ё', 'е') like ${`%${escapeLikePattern(word)}%`}`;
+  const bodyTypes = bodyTypesMatching(word);
+  return bodyTypes.length > 0 ? or(nameMatch, inArray(contacts.bodyType, bodyTypes)) : nameMatch;
+}
+
+/** The value is within the range; a contact without the value is never within one. */
+function withinRange(column: PgColumn, range: Range | null): SQL[] {
+  if (!range) return [];
+  return [
+    ...(range.min !== null ? [gte(column, range.min)] : []),
+    ...(range.max !== null ? [lte(column, range.max)] : []),
+  ];
+}
+
+/**
+ * All contacts that match every part of `query`, in Russian alphabetical order:
+ * words in the name or the body type, and the tons and cubic meters asked for ("от 5 тонн").
+ */
 export async function searchContacts(query: string): Promise<ContactListItem[]> {
-  const words = normalizeForSearch(query).split(/\s+/).filter(Boolean);
-  const nameMatches = words.map(
-    (word) =>
-      sql`replace(lower(${contacts.name}), 'ё', 'е') like ${`%${escapeLikePattern(word)}%`}`,
-  );
+  const { words, tons, cubicMeters } = parseContactSearch(query);
 
   return db
     .select(contactListColumns)
     .from(contacts)
-    .where(and(...nameMatches))
+    .where(
+      and(
+        ...words.map(matchesWord),
+        ...withinRange(contacts.capacityTons, tons),
+        ...withinRange(contacts.volumeCubicMeters, cubicMeters),
+      ),
+    )
     .orderBy(...alphabeticalOrder);
 }
 

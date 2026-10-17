@@ -8,12 +8,14 @@ import { loadContactsPage } from "@/app/actions";
 import { ContactAvatar } from "@/components/contact-avatar";
 import { JustAddedBadge } from "@/components/just-added-badge";
 import { Button } from "@/components/ui/button";
+import { bodyTypeLabels } from "@/lib/body-types";
 import {
   CONTACTS_PAGE_SIZE,
   type ContactCursor,
   type ContactListItem,
   type ContactsPage,
 } from "@/lib/contact-list";
+import { formatCubicMeters, formatTons } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 // The next contacts start loading this far before the end of the list comes into view.
@@ -166,6 +168,14 @@ const ContactRow = memo(function ContactRow({
   contact: ContactListItem;
   isAdded: boolean;
 }) {
+  const truck = [
+    contact.capacityTons !== null && formatTons(contact.capacityTons),
+    contact.volumeCubicMeters !== null && formatCubicMeters(contact.volumeCubicMeters),
+    contact.bodyType && bodyTypeLabels[contact.bodyType],
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
   return (
     <li data-contact-id={contact.id}>
       <Link
@@ -184,6 +194,7 @@ const ContactRow = memo(function ContactRow({
           {contact.about && (
             <div className="mt-0.5 truncate text-[13px] text-muted-foreground">{contact.about}</div>
           )}
+          {truck && <div className="mt-1 truncate text-xs text-accent">{truck}</div>}
         </div>
         <div className="hidden shrink-0 text-right text-[13px] text-dim sm:block">
           {contact.phone && <div>{contact.phone}</div>}

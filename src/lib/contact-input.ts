@@ -1,11 +1,34 @@
 import { z } from "zod";
 
+import { bodyTypes } from "./body-types";
+
 const optionalText = (maxLength: number) =>
   z
     .string()
     .trim()
     .max(maxLength, `Не длиннее ${maxLength} символов`)
     .transform((value) => (value === "" ? null : value));
+
+// The database keeps two decimal places: "1,5" and "82.25" fit, "1,555" does not.
+const optionalAmount = (max: number) =>
+  z
+    .string()
+    .trim()
+    .transform((value, context) => {
+      if (value === "") return null;
+
+      const normalized = value.replace(",", ".");
+      if (!/^\d+(\.\d{1,2})?$/.test(normalized)) {
+        context.addIssue({ code: "custom", message: "Укажите число, например 1,5" });
+        return z.NEVER;
+      }
+      const amount = Number(normalized);
+      if (amount <= 0 || amount > max) {
+        context.addIssue({ code: "custom", message: `Больше нуля и не больше ${max}` });
+        return z.NEVER;
+      }
+      return amount;
+    });
 
 export const contactIdSchema = z.number().int().positive();
 
@@ -23,6 +46,12 @@ export const contactInputSchema = z.object({
     (value) => value === null || /^\S+@\S+\.\S+$/.test(value),
     "Проверьте адрес почты",
   ),
+  capacityTons: optionalAmount(999),
+  volumeCubicMeters: optionalAmount(999),
+  bodyType: z
+    .string()
+    .transform((value) => (value === "" ? null : value))
+    .pipe(z.enum(bodyTypes, "Выберите тип кузова из списка").nullable()),
 });
 
 export const noteInputSchema = z.object({

@@ -66,8 +66,8 @@ export function SearchInput({ query }: { query: string }) {
         name="q"
         defaultValue={query}
         onChange={(event) => scheduleSearch(event.target.value)}
-        placeholder="Поиск по имени"
-        aria-label="Поиск по имени"
+        placeholder="Имя, кузов, «от 5 тонн»"
+        aria-label="Поиск по имени, типу кузова, тоннам и кубам"
         autoComplete="off"
         className="h-12 pl-11"
       />

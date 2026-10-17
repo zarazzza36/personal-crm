@@ -8,8 +8,10 @@ import { EditContactButton } from "@/components/contact-dialog";
 import { DeleteContactButton } from "@/components/delete-contact-button";
 import { NoteForm } from "@/components/note-form";
 import { getContact, listNotes } from "@/db/queries";
+import { bodyTypeLabels } from "@/lib/body-types";
 import { parseContactId } from "@/lib/contact-input";
-import { formatDateTime } from "@/lib/format";
+import { formatCubicMeters, formatDateTime, formatTons } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 type Params = PageProps<"/contacts/[id]">["params"];
 
@@ -60,23 +62,35 @@ async function ContactCard({ params }: { params: Params }) {
       </header>
 
       {/* A light card on the dark page, like the contact card on the landing */}
-      <dl className="mt-8 grid gap-x-8 gap-y-1.5 rounded-[18px] bg-paper p-5 text-ink shadow-card sm:grid-cols-[auto_1fr] sm:items-baseline sm:gap-y-4 sm:p-7">
-        <Detail label="Откуда знакомы">{contact.howWeMet}</Detail>
-        <Detail label="Телефон">
-          {contact.phone && (
-            <a href={`tel:${contact.phone.replace(/[^\d+]/g, "")}`} className="hover:underline">
-              {contact.phone}
-            </a>
-          )}
-        </Detail>
-        <Detail label="Почта">
-          {contact.email && (
-            <a href={`mailto:${contact.email}`} className="break-all hover:underline">
-              {contact.email}
-            </a>
-          )}
-        </Detail>
-      </dl>
+      <div className="mt-8 grid gap-5 rounded-[18px] bg-paper p-5 text-ink shadow-card sm:gap-6 sm:p-7">
+        <Details>
+          <Detail label="Откуда знакомы">{contact.howWeMet}</Detail>
+          <Detail label="Телефон">
+            {contact.phone && (
+              <a href={`tel:${contact.phone.replace(/[^\d+]/g, "")}`} className="hover:underline">
+                {contact.phone}
+              </a>
+            )}
+          </Detail>
+          <Detail label="Почта">
+            {contact.email && (
+              <a href={`mailto:${contact.email}`} className="break-all hover:underline">
+                {contact.email}
+              </a>
+            )}
+          </Detail>
+        </Details>
+        {/* The truck: a group of its own under the contact details */}
+        <Details className="border-t border-ink/10 pt-5 sm:pt-6">
+          <Detail label="Тонны">
+            {contact.capacityTons !== null && formatTons(contact.capacityTons)}
+          </Detail>
+          <Detail label="Кубы">
+            {contact.volumeCubicMeters !== null && formatCubicMeters(contact.volumeCubicMeters)}
+          </Detail>
+          <Detail label="Тип кузова">{contact.bodyType && bodyTypeLabels[contact.bodyType]}</Detail>
+        </Details>
+      </div>
 
       <section className="mt-12" aria-labelledby="notes-heading">
         <h2 id="notes-heading" className="font-heading text-[28px] font-bold tracking-[-0.01em]">
@@ -109,6 +123,20 @@ async function ContactCard({ params }: { params: Params }) {
   );
 }
 
+// Both groups of the card share the label column width, so their values line up.
+function Details({ className, children }: { className?: string; children: React.ReactNode }) {
+  return (
+    <dl
+      className={cn(
+        "grid gap-x-8 gap-y-1.5 sm:grid-cols-[10rem_1fr] sm:items-baseline sm:gap-y-4",
+        className,
+      )}
+    >
+      {children}
+    </dl>
+  );
+}
+
 function Detail({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <>
@@ -130,7 +158,7 @@ function ContactFallback() {
           <span className="h-4 w-72 max-w-full rounded bg-muted" />
         </span>
       </div>
-      <div className="mt-8 h-40 rounded-[18px] bg-muted" />
+      <div className="mt-8 h-72 rounded-[18px] bg-muted" />
     </div>
   );
 }

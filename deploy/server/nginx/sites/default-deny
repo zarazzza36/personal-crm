@@ -1,0 +1,15 @@
+# Requests straight to the IP or for a name this server does not serve:
+# close the connection instead of showing one of the sites.
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    server_name _;
+    return 444;
+}
+
+server {
+    listen 443 ssl http2 default_server;
+    listen [::]:443 ssl http2 default_server;
+    server_name _;
+    ssl_reject_handshake on;
+}

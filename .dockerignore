@@ -1,0 +1,16 @@
+# Secrets never get into the image
+.env
+.env.*
+
+# Installed and built inside the image
+node_modules
+.next
+*.tsbuildinfo
+next-env.d.ts
+
+# Not part of the app
+.git
+.github
+.claude
+deploy
+specs

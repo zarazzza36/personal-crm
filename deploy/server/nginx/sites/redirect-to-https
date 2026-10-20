@@ -1,0 +1,14 @@
+# Plain HTTP for both domains: certbot's domain checks, everything else goes to HTTPS.
+server {
+    listen 80;
+    listen [::]:80;
+    server_name volki-lzkv.ru app.volki-lzkv.ru;
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/letsencrypt;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}

@@ -1,0 +1,2 @@
+# Server scripts and configs run on Linux: keep LF even on a Windows checkout.
+deploy/** text eol=lf

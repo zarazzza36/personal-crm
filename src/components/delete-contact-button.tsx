@@ -4,6 +4,7 @@ import { useLayoutEffect, useRef, useState, useTransition } from "react";
 import { Trash2Icon } from "lucide-react";
 
 import { deleteContact } from "@/app/actions";
+import { useReloadReminders } from "@/components/reminders";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 
 export function DeleteContactButton({ contactId }: { contactId: number }) {
+  const reloadReminders = useReloadReminders();
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const cancelRef = useRef<HTMLButtonElement>(null);
@@ -40,7 +42,15 @@ export function DeleteContactButton({ contactId }: { contactId: number }) {
           <AlertDialogAction
             variant="destructive"
             disabled={isPending}
-            onClick={() => startTransition(() => deleteContact(contactId))}
+            onClick={() =>
+              startTransition(() => {
+                const deleting = deleteContact(contactId);
+                // Server Actions run one at a time, so the reminders come after the deletion,
+                // without those of the contact's notes.
+                reloadReminders();
+                return deleting;
+              })
+            }
           >
             {isPending ? "Удаляю…" : "Да"}
           </AlertDialogAction>

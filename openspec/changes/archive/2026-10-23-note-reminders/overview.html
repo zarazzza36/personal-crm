@@ -1,0 +1,580 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Напоминания о заметках — обзор</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Unbounded:wght@500;700&display=swap">
+<style>
+/* Values copied from src/app/globals.css */
+:root {
+  color-scheme: dark;
+  --color-ink: #161719;
+  --color-paper: #f2f0ea;
+  --color-dim: #9a9890;
+  --color-asphalt: #2b2c30;
+  --color-card-label: #6b6960;
+  --color-grid-line: rgb(255 255 255 / 0.04);
+  --muted: rgb(242 240 234 / 0.06);
+  --muted-foreground: #c9c6bd;
+  --accent: oklch(0.86 0.17 95);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: rgb(242 240 234 / 0.12);
+  --input: rgb(242 240 234 / 0.2);
+  --text-11: 11px;
+  --text-13: 13px;
+  --text-15: 15px;
+  --text-22: 22px;
+  --text-26: 26px;
+  --text-28: 28px;
+  --text-32: 32px;
+  --tracking-heading: -0.01em;
+  --tracking-label: 0.08em;
+  --radius-3: 3px;
+  --radius-10: 10px;
+  --radius-14: 14px;
+  --radius-16: 16px;
+  --radius-18: 18px;
+  --shadow-card: 0 16px 40px rgb(0 0 0 / 0.45);
+  --grid-size: 39px;
+  --font-heading: "Unbounded", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  /* Derived for this page only: the accent at low strength, for "new" highlights */
+  --accent-soft: color-mix(in oklch, var(--accent) 16%, transparent);
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background-color: var(--color-ink);
+  background-image:
+    linear-gradient(var(--color-grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--color-grid-line) 1px, transparent 1px);
+  background-size: var(--grid-size) var(--grid-size);
+  background-attachment: fixed;
+  color: var(--color-paper);
+  font-family: var(--font-mono);
+  font-size: var(--text-15);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+.page { max-width: 880px; margin: 0 auto; padding: 40px 16px 80px; }
+header.top { display: flex; align-items: center; gap: 10px; font-size: var(--text-13); letter-spacing: var(--tracking-label); text-transform: uppercase; color: var(--color-dim); }
+.dot { display: inline-block; width: 12px; height: 12px; border-radius: var(--radius-3); background: var(--accent); flex-shrink: 0; }
+h1 { font-family: var(--font-heading); font-weight: 700; font-size: 40px; line-height: 1.12; letter-spacing: var(--tracking-heading); margin: 16px 0 14px; }
+h2 { font-family: var(--font-heading); font-weight: 700; font-size: var(--text-28); letter-spacing: var(--tracking-heading); margin: 64px 0 18px; display: flex; align-items: baseline; gap: 12px; }
+h2 .num { font-size: var(--text-15); color: var(--accent); }
+h3 { font-family: var(--font-heading); font-weight: 500; font-size: 18px; margin: 28px 0 10px; }
+p { margin: 8px 0; }
+.lead { font-size: 17px; color: var(--muted-foreground); max-width: 700px; }
+.muted { color: var(--color-dim); }
+.small { font-size: var(--text-13); }
+b { font-weight: 500; color: var(--color-paper); }
+code { font-family: var(--font-mono); font-size: 0.9em; background: var(--muted); border: 1px solid var(--border); padding: 0 5px; border-radius: 6px; }
+ul.points { padding-left: 20px; margin: 8px 0; color: var(--muted-foreground); }
+ul.points li { margin: 5px 0; }
+.card { background: var(--color-asphalt); border: 1px solid var(--border); border-radius: var(--radius-18); padding: 20px 24px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 999px; background: var(--color-asphalt); border: 1px solid var(--border); font-size: var(--text-13); color: var(--muted-foreground); }
+.chip.accent { color: var(--accent); border-color: color-mix(in oklch, var(--accent) 45%, transparent); }
+
+/* Screen sketches */
+.screens { display: grid; gap: 32px; }
+.screen-title { font-family: var(--font-heading); font-size: var(--text-15); font-weight: 500; margin: 0 0 10px; }
+.device { position: relative; background: var(--color-ink); border: 1px solid var(--border); border-radius: var(--radius-16); padding: 16px; overflow: hidden; }
+.appbar { display: flex; align-items: center; justify-content: space-between; padding-bottom: 12px; margin-bottom: 14px; border-bottom: 1px solid var(--border); }
+.brand { display: flex; align-items: center; gap: 8px; font-family: var(--font-heading); font-weight: 700; font-size: var(--text-13); }
+.brand .dot { width: 10px; height: 10px; }
+.tagline { font-size: var(--text-11); letter-spacing: var(--tracking-label); color: var(--color-dim); }
+.back { font-size: var(--text-13); color: var(--color-dim); margin-bottom: 10px; }
+.sk-h1 { font-family: var(--font-heading); font-weight: 700; font-size: var(--text-22); margin: 0 0 4px; }
+.sk-h2 { font-family: var(--font-heading); font-weight: 700; font-size: 18px; margin: 18px 0 10px; }
+.textarea { border: 1px solid var(--input); background: rgb(242 240 234 / 0.03); border-radius: 8px; padding: 10px 12px; color: var(--color-dim); font-size: var(--text-13); min-height: 64px; }
+.btn { display: inline-flex; align-items: center; gap: 6px; border-radius: 10px; padding: 6px 12px; font-family: var(--font-heading); font-size: 12px; font-weight: 500; white-space: nowrap; }
+.btn-primary { background: var(--accent); color: var(--color-ink); }
+.btn-outline { border: 1px solid var(--input); color: var(--color-paper); }
+.btn-ghost { color: var(--destructive); padding-left: 0; padding-right: 0; }
+.notes { display: grid; gap: 10px; margin-top: 12px; }
+.note { background: var(--color-asphalt); border-radius: var(--radius-16); padding: 14px 16px; }
+.note-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.note time { font-size: var(--text-11); letter-spacing: var(--tracking-label); color: var(--accent); }
+.note p { margin: 6px 0 0; font-size: var(--text-13); }
+.reminder-line { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; font-size: var(--text-13); color: var(--muted-foreground); }
+.is-new { position: relative; outline: 2px dashed var(--accent); outline-offset: 4px; border-radius: 10px; }
+.new-tag { position: absolute; top: -12px; right: 8px; background: var(--accent); color: var(--color-ink); font-size: 10px; font-weight: 500; letter-spacing: var(--tracking-label); text-transform: uppercase; padding: 1px 8px; border-radius: 999px; z-index: 2; }
+.callouts { margin: 12px 0 0; padding-left: 20px; font-size: var(--text-13); color: var(--muted-foreground); }
+.callouts li { margin: 4px 0; }
+
+/* Dialog sketch */
+.backdrop { background: rgb(0 0 0 / 0.6); border-radius: 12px; padding: 28px 16px; display: grid; place-items: center; }
+.dialog { position: relative; width: 100%; max-width: 360px; background: var(--color-ink); border: 1px solid var(--border); border-radius: var(--radius-18); padding: 18px; box-shadow: var(--shadow-card); }
+.dialog .title { font-family: var(--font-heading); font-weight: 700; font-size: 17px; margin-bottom: 14px; }
+.dialog .close { position: absolute; top: 12px; right: 14px; color: var(--color-dim); }
+.fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.field .k { font-size: var(--text-13); color: var(--muted-foreground); margin-bottom: 4px; }
+.input { border: 1px solid var(--input); background: rgb(242 240 234 / 0.03); border-radius: 8px; padding: 8px 10px; font-size: var(--text-13); display: flex; justify-content: space-between; gap: 6px; }
+.input span { color: var(--color-dim); }
+.error { color: var(--destructive); font-size: var(--text-13); margin-top: 10px; }
+.dialog-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
+
+/* Notification sketch */
+.toasts { position: absolute; top: 12px; left: 12px; display: grid; gap: 8px; width: min(300px, calc(100% - 24px)); z-index: 3; }
+.toast { position: relative; background: var(--color-asphalt); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: var(--radius-14); padding: 10px 30px 10px 12px; box-shadow: var(--shadow-card); }
+.toast .lbl { font-size: 10px; letter-spacing: var(--tracking-label); text-transform: uppercase; color: var(--accent); }
+.toast .who { font-family: var(--font-heading); font-weight: 500; font-size: var(--text-13); margin-top: 2px; }
+.toast .txt { font-size: 12px; color: var(--muted-foreground); margin-top: 4px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.toast .lnk { font-size: 12px; color: var(--accent); text-decoration: underline; text-underline-offset: 3px; margin-top: 6px; display: inline-block; }
+.toast .x { position: absolute; top: 6px; right: 10px; color: var(--color-dim); }
+.list-under { opacity: 0.45; padding-top: 150px; }
+.list-row { padding: 10px 0; border-top: 1px solid var(--border); }
+.list-row .n { font-family: var(--font-heading); font-size: var(--text-13); font-weight: 500; }
+.list-row .m { font-size: 12px; color: var(--color-dim); }
+
+/* Rules */
+.rules { display: grid; gap: 12px; }
+.rule { background: var(--color-asphalt); border: 1px solid var(--border); border-radius: var(--radius-16); padding: 14px 18px; }
+.rule .h { font-family: var(--font-heading); font-weight: 500; font-size: var(--text-15); margin-bottom: 4px; }
+.rule p { color: var(--muted-foreground); }
+.example { font-size: var(--text-13); color: var(--muted-foreground); background: var(--muted); border-left: 3px solid var(--accent); padding: 6px 10px; margin-top: 8px; border-radius: 0 8px 8px 0; }
+table.t { border-collapse: collapse; width: 100%; font-size: var(--text-13); margin-top: 8px; }
+table.t th, table.t td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--border); }
+table.t th { color: var(--color-dim); font-weight: 400; }
+
+/* Data model */
+.legend { display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: var(--text-13); color: var(--muted-foreground); margin: 10px 0; }
+.legend span { display: inline-flex; align-items: center; gap: 8px; }
+.sw { width: 14px; height: 14px; border-radius: 4px; border: 1.5px solid var(--border); background: var(--color-asphalt); }
+.sw.new { border-color: var(--accent); background: var(--accent-soft); }
+.schema { background: var(--color-asphalt); border: 1px solid var(--border); border-radius: var(--radius-18); overflow-x: auto; margin: 10px 0 6px; }
+.schema svg { display: block; width: 100%; min-width: 720px; height: auto; }
+.scroll-hint { display: none; font-size: var(--text-13); color: var(--color-dim); }
+.box { fill: var(--color-ink); stroke: var(--border); stroke-width: 1.5; }
+.box.new { stroke: var(--accent); }
+.head { fill: rgb(242 240 234 / 0.08); }
+.tname { font: 500 14px var(--font-mono); fill: var(--color-paper); }
+.tru { font: 400 13px var(--font-mono); fill: var(--color-dim); }
+.row { font: 400 13px var(--font-mono); fill: var(--color-paper); }
+.row .ru { fill: var(--color-dim); }
+.row.hl, .row.hl .ru { fill: var(--accent); }
+.rowbg { fill: var(--accent-soft); }
+.link { fill: none; stroke: var(--color-dim); stroke-width: 1.5; }
+.arrow { fill: var(--color-dim); }
+.lnote { font: 400 13px var(--font-mono); fill: var(--color-dim); }
+.lnote.new { fill: var(--accent); }
+.lookup { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; margin-top: 10px; }
+.who-card { background: var(--color-asphalt); border: 1px solid var(--border); border-radius: var(--radius-16); padding: 16px; display: grid; gap: 10px; align-content: start; }
+.who-card .ask { font-size: var(--text-13); background: var(--muted); border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; }
+.who-card .ask b { color: var(--accent); font-weight: 500; }
+.result { justify-self: start; font-size: var(--text-13); border-radius: 999px; padding: 3px 12px; }
+.result.show { background: var(--accent); color: var(--color-ink); }
+.result.wait { background: var(--muted); color: var(--muted-foreground); border: 1px solid var(--border); }
+.result.none { color: var(--color-dim); border: 1px dashed var(--border); }
+.steps { list-style: none; margin: 10px 0; padding: 0; display: grid; gap: 12px; counter-reset: step; }
+.steps li { counter-increment: step; display: grid; grid-template-columns: 40px 1fr; gap: 14px; background: var(--color-asphalt); border: 1px solid var(--border); border-radius: var(--radius-16); padding: 16px 18px; }
+.steps li::before { content: counter(step); font: 700 24px/1 var(--font-heading); color: var(--color-dim); }
+.steps h3 { margin: 0 0 4px; font-size: var(--text-15); }
+.steps p { color: var(--muted-foreground); margin: 4px 0; }
+.tag-ok { display: inline-block; font-size: 11px; letter-spacing: 0.04em; color: var(--color-ink); background: var(--muted-foreground); border-radius: 999px; padding: 1px 9px; margin-left: 6px; vertical-align: 2px; }
+.tablewrap { overflow-x: auto; background: var(--color-asphalt); border: 1px solid var(--border); border-radius: var(--radius-16); margin-top: 12px; }
+.tablewrap table { margin: 0; }
+.tablewrap td.new { color: var(--accent); }
+
+/* Checklist */
+.prep { background: var(--color-paper); color: var(--color-ink); border-radius: var(--radius-16); padding: 14px 18px; font-size: var(--text-13); }
+.prep b { color: var(--color-ink); }
+.prep code { background: rgb(22 23 25 / 0.06); border-color: rgb(22 23 25 / 0.12); }
+.prep ul { margin: 6px 0 0; padding-left: 18px; }
+.check-group { margin-bottom: 18px; }
+.check { display: flex; gap: 12px; align-items: flex-start; padding: 10px 14px; background: var(--color-asphalt); border: 1px solid var(--border); border-radius: 12px; margin: 6px 0; cursor: pointer; }
+.check input { margin-top: 5px; accent-color: var(--accent); width: 16px; height: 16px; flex-shrink: 0; }
+.check .sc { font-family: var(--font-heading); font-weight: 500; font-size: var(--text-13); }
+.check .st { font-size: var(--text-13); color: var(--muted-foreground); margin-top: 2px; }
+.check .st .arrow { color: var(--accent); }
+
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.box-card h3 { margin-top: 0; }
+footer { margin-top: 64px; font-size: var(--text-13); color: var(--color-dim); }
+
+@media (max-width: 760px) {
+  h1 { font-size: 30px; }
+  h2 { font-size: var(--text-22); }
+  .two { grid-template-columns: 1fr; }
+  .scroll-hint { display: block; }
+}
+@media (max-width: 420px) {
+  .fields { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+<header class="top"><span class="dot"></span>Личная CRM · обзор фичи</header>
+<h1>Напоминания о заметках</h1>
+<p class="lead">У каждой заметки — кнопка «Напомнить»: выбираете дату и время по Москве, и в нужную секунду в левом верхнем углу приложения всплывает уведомление с этой заметкой. Оно висит, пока его не закроешь.</p>
+<div class="chips">
+  <span class="chip accent">Сделана, ещё не влита в main</span>
+  <span class="chip">Задачи: 17 из 17</span>
+  <span class="chip">Автотестов нет — сценарии пройдены в Chrome</span>
+  <span class="chip">Изменение <code>note-reminders</code> в архиве OpenSpec</span>
+</div>
+
+<!-- 1 -->
+<h2><span class="num">1</span>Коротко</h2>
+<ul class="points">
+  <li>У каждой сохранённой заметки в карточке контакта появляется кнопка «Напомнить».</li>
+  <li>Кнопка открывает окно: дата и время с часами, минутами и секундами. Сразу подставлено время на час вперёд по Москве.</li>
+  <li>У заметки одно напоминание: его можно поставить, перенести или убрать. Время видно прямо у заметки.</li>
+  <li>Время наступило — на любой странице приложения в левом верхнем углу всплывает уведомление: кто, о чём, ссылка на карточку и крестик.</li>
+  <li>Пропустили, потому что приложение было закрыто, — уведомление всплывёт при следующем открытии.</li>
+  <li>Всё время у заметок становится московским, в том числе время создания заметки. Сейчас сайт показывает его на 3 часа меньше.</li>
+  <li>Статус: <b>сделана</b>, все 17 задач отмечены, ещё не влита в main. Автотестов (программ, которые сами проходят сценарии) в проекте нет. 18 из 19 сценариев пройдены в Chrome на локальном приложении; «другой часовой пояс» проверен скриптом в поясах UTC, Новосибирска и Нью-Йорка.</li>
+</ul>
+
+<!-- 2 -->
+<h2><span class="num">2</span>Что появится на экранах</h2>
+<p class="muted small">Наброски, не точные макеты. Новое обведено пунктиром. Имена, тексты и время выдуманы.</p>
+
+<div class="screens">
+  <div>
+    <p class="screen-title">Карточка контакта, раздел «Заметки»</p>
+    <div class="device">
+      <div class="back">← Все контакты</div>
+      <p class="sk-h1">Сергей Кузнецов</p>
+      <p class="muted small" style="margin:0">Тент 20 т, возит по ЦФО</p>
+      <p class="sk-h2">Заметки</p>
+      <div class="textarea">О чём говорили, о чём договорились</div>
+      <div style="margin-top:8px"><span class="btn btn-primary">Сохранить заметку</span></div>
+      <div class="notes">
+        <div class="note">
+          <div class="note-top">
+            <time>22 ОКТЯБРЯ 2026 Г. В 18:40</time>
+            <span class="is-new"><span class="new-tag">новое</span><span class="btn btn-outline">⏰ Напомнить</span></span>
+          </div>
+          <p>Договорились: в четверг созвониться насчёт рейса в Казань, он уточнит, свободна ли машина.</p>
+          <div class="is-new" style="display:inline-block;margin-top:12px"><span class="reminder-line" style="margin-top:0">⏰ Напомню 23 октября 2026 г. в 14:30:15</span></div>
+        </div>
+        <div class="note">
+          <div class="note-top">
+            <time>15 ОКТЯБРЯ 2026 Г. В 11:05</time>
+            <span class="is-new"><span class="new-tag">новое</span><span class="btn btn-outline">⏰ Напомнить</span></span>
+          </div>
+          <p>Познакомились на складе в Подольске, обещал скинуть номер диспетчера.</p>
+        </div>
+      </div>
+    </div>
+    <ul class="callouts">
+      <li>Кнопка «Напомнить» — у каждой заметки, в строке с её датой.</li>
+      <li>Строка «Напомню …» есть, только когда напоминание поставлено. После закрытия уведомления она пропадает.</li>
+      <li>Время создания заметки и время напоминания — по Москве, на любом устройстве.</li>
+    </ul>
+  </div>
+
+  <div>
+    <p class="screen-title">Окно «Напоминание»</p>
+    <div class="device is-new" style="outline-offset:-2px;border-radius:16px"><span class="new-tag" style="top:8px;right:12px">новое</span>
+      <div class="backdrop">
+        <div class="dialog">
+          <span class="close">✕</span>
+          <div class="title">Напоминание</div>
+          <div class="fields">
+            <div class="field"><div class="k">Дата</div><div class="input">23.10.2026 <span>▦</span></div></div>
+            <div class="field"><div class="k">Время</div><div class="input">14:30:15 <span>◷</span></div></div>
+          </div>
+          <div class="error">Это время уже прошло — выберите время в будущем</div>
+          <div class="dialog-foot">
+            <span class="btn btn-ghost">Убрать напоминание</span>
+            <span class="btn btn-primary">Сохранить</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <ul class="callouts">
+      <li>Заметка без напоминания: в полях время по Москве на час позже момента открытия окна, кнопки «Убрать напоминание» нет.</li>
+      <li>Заметка с напоминанием: в полях его время, есть «Убрать напоминание».</li>
+      <li>Ошибка видна, только если выбранное время уже прошло. Пустое поле браузер не даст сохранить сам.</li>
+      <li>Крестик, Esc или щелчок мимо окна закрывают его без сохранения.</li>
+    </ul>
+  </div>
+
+  <div>
+    <p class="screen-title">Любая страница, когда наступило время</p>
+    <div class="device" style="min-height:330px">
+      <div class="toasts is-new" style="outline-offset:3px"><span class="new-tag">новое</span>
+        <div class="toast">
+          <span class="x">✕</span>
+          <div class="lbl">Напоминание</div>
+          <div class="who">Сергей Кузнецов</div>
+          <div class="txt">Договорились: в четверг созвониться насчёт рейса в Казань, он уточнит, свободна ли машина.</div>
+          <span class="lnk">Открыть карточку</span>
+        </div>
+        <div class="toast">
+          <span class="x">✕</span>
+          <div class="lbl">Напоминание</div>
+          <div class="who">Ольга Лебедева</div>
+          <div class="txt">Скинуть ей ставки на рефрижератор до Екатеринбурга.</div>
+          <span class="lnk">Открыть карточку</span>
+        </div>
+      </div>
+      <div class="list-under">
+        <div class="appbar"><span class="brand"><span class="dot"></span>Волки с Лизюкова</span><span class="tagline">ДЛЯ ЛОГИСТОВ</span></div>
+        <div class="list-row"><div class="n">Алексей Зайцев</div><div class="m">Механик · 1,5 т · 9 м³ · Фургон</div></div>
+        <div class="list-row"><div class="n">Анна Смирнова</div><div class="m">Экспедитор</div></div>
+      </div>
+    </div>
+    <ul class="callouts">
+      <li>Уведомления лежат поверх страницы в левом верхнем углу, на списке, в карточке — везде.</li>
+      <li>Само уведомление не исчезает. Закрывает только крестик.</li>
+      <li>«Открыть карточку» ведёт к контакту, уведомление при этом остаётся.</li>
+      <li>Несколько уведомлений — стопкой, сверху то, чьё время наступило раньше. Если стопка выше экрана, она листается.</li>
+      <li>От текста заметки видны первые 3 строки.</li>
+    </ul>
+  </div>
+</div>
+
+<!-- 3 -->
+<h2><span class="num">3</span>Как это работает</h2>
+<div class="rules">
+  <div class="rule">
+    <div class="h">У заметки — одно напоминание</div>
+    <p>Новое время заменяет старое. Уведомление придёт только в новое время.</p>
+    <div class="example">Было «в 14:30:15», поставили «в 16:00:00» → в 14:30:15 ничего не всплывёт, в 16:00:00 — всплывёт.</div>
+  </div>
+  <div class="rule">
+    <div class="h">Время — московское, всегда</div>
+    <p>Вводите время по Москве, и у заметок оно показывается по Москве. Часовой пояс компьютера, телефона или сервера ни на что не влияет.</p>
+    <div class="example">Ноутбук в Новосибирске (там на 4 часа больше). Ставите 14:30:15 → у заметки «в 14:30:15», уведомление всплывает в 14:30:15 по Москве, а на часах ноутбука в этот момент 18:30:15.</div>
+  </div>
+  <div class="rule">
+    <div class="h">Время в прошлом не сохраняется</div>
+    <p>Сравнивается с текущим временем в момент нажатия «Сохранить». Подставленное «через час» можно сохранить как есть.</p>
+    <div class="example">Открыли окно в 14:00:00 — в полях 15:00:00. Поставили вчерашнюю дату и нажали «Сохранить» → «Это время уже прошло — выберите время в будущем».</div>
+  </div>
+  <div class="rule">
+    <div class="h">Когда всплывает уведомление</div>
+    <table class="t">
+      <tr><th>Где открыто приложение</th><th>Когда всплывёт</th></tr>
+      <tr><td>Во вкладке, где ставили напоминание</td><td>в ту же секунду</td></tr>
+      <tr><td>В другом браузере или вкладке</td><td>не позже чем через 15 секунд</td></tr>
+      <tr><td>Во вкладке, которая давно свёрнута</td><td>браузер может притормозить до минуты; при взгляде на вкладку оно уже там</td></tr>
+      <tr><td>Нигде — приложение закрыто</td><td>сразу при следующем открытии любой страницы</td></tr>
+    </table>
+  </div>
+  <div class="rule">
+    <div class="h">Висит, пока не закроешь</div>
+    <p>Обновили страницу, перешли на другую, открыли карточку по ссылке — уведомление на месте. Закрыли крестиком — напоминание выполнено: у заметки пропадает «Напомню …», можно поставить новое. В других открытых браузерах уведомление уходит в течение 15 секунд.</p>
+  </div>
+  <div class="rule">
+    <div class="h">Убрать напоминание или удалить контакт</div>
+    <p>«Убрать напоминание» в окне — уведомление не придёт. Удалили контакт — напоминания его заметок удаляются вместе с заметками.</p>
+  </div>
+</div>
+
+<!-- 4 -->
+<h2><span class="num">4</span>Модель данных до и после</h2>
+<p>Модель данных — какие таблицы лежат в базе и какие в них поля. Фича добавляет одно поле в таблицу заметок. Новых таблиц нет.</p>
+
+<h3>Сейчас</h3>
+<p class="scroll-hint">Схему можно листать вбок.</p>
+<div class="schema">
+  <svg viewBox="0 0 880 240" role="img" aria-label="Схема сейчас: contacts и notes, у контакта много заметок">
+    <defs>
+      <marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="arrow"/></marker>
+    </defs>
+    <path class="link" d="M340 102 H536" marker-end="url(#a1)"/>
+    <text class="lnote" x="438" y="92" text-anchor="middle">у контакта много заметок</text>
+    <rect class="box" x="40" y="30" width="300" height="184" rx="12"/>
+    <path class="head" d="M52 30 H328 A12 12 0 0 1 340 42 V66 H40 V42 A12 12 0 0 1 52 30 Z"/>
+    <text class="tname" x="56" y="53">contacts</text>
+    <text class="tru" x="324" y="53" text-anchor="end">контакты</text>
+    <text class="row" x="56" y="90">id</text>
+    <text class="row" x="56" y="114">name, about, how_we_met</text>
+    <text class="row" x="56" y="138">phone, email</text>
+    <text class="row" x="56" y="162">capacity_tons, volume_…</text>
+    <text class="row" x="56" y="186">body_type, created_at</text>
+    <rect class="box" x="540" y="30" width="300" height="148" rx="12"/>
+    <path class="head" d="M552 30 H828 A12 12 0 0 1 840 42 V66 H540 V42 A12 12 0 0 1 552 30 Z"/>
+    <text class="tname" x="556" y="53">notes</text>
+    <text class="tru" x="824" y="53" text-anchor="end">заметки</text>
+    <text class="row" x="556" y="90">id</text>
+    <text class="row" x="556" y="114">contact_id <tspan class="ru">— чья заметка</tspan></text>
+    <text class="row" x="556" y="138">body <tspan class="ru">— текст</tspan></text>
+    <text class="row" x="556" y="162">created_at <tspan class="ru">— когда написана</tspan></text>
+  </svg>
+</div>
+
+<h3>После</h3>
+<div class="legend"><span><i class="sw new"></i>новое</span><span><i class="sw"></i>как было</span></div>
+<p class="scroll-hint">Схему можно листать вбок.</p>
+<div class="schema">
+  <svg viewBox="0 0 880 250" role="img" aria-label="Схема после: в notes добавлено поле remind_at и индекс по нему, contacts без изменений">
+    <defs>
+      <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="arrow"/></marker>
+    </defs>
+    <path class="link" d="M340 102 H536" marker-end="url(#a2)"/>
+    <text class="lnote" x="438" y="92" text-anchor="middle">у контакта много заметок</text>
+    <rect class="box" x="40" y="30" width="300" height="184" rx="12"/>
+    <path class="head" d="M52 30 H328 A12 12 0 0 1 340 42 V66 H40 V42 A12 12 0 0 1 52 30 Z"/>
+    <text class="tname" x="56" y="53">contacts</text>
+    <text class="tru" x="324" y="53" text-anchor="end">как было</text>
+    <text class="row" x="56" y="90">id</text>
+    <text class="row" x="56" y="114">name, about, how_we_met</text>
+    <text class="row" x="56" y="138">phone, email</text>
+    <text class="row" x="56" y="162">capacity_tons, volume_…</text>
+    <text class="row" x="56" y="186">body_type, created_at</text>
+    <rect class="box new" x="540" y="30" width="300" height="172" rx="12"/>
+    <path class="head" d="M552 30 H828 A12 12 0 0 1 840 42 V66 H540 V42 A12 12 0 0 1 552 30 Z"/>
+    <text class="tname" x="556" y="53">notes</text>
+    <text class="tru" x="824" y="53" text-anchor="end">заметки</text>
+    <text class="row" x="556" y="90">id</text>
+    <text class="row" x="556" y="114">contact_id <tspan class="ru">— чья заметка</tspan></text>
+    <text class="row" x="556" y="138">body <tspan class="ru">— текст</tspan></text>
+    <text class="row" x="556" y="162">created_at <tspan class="ru">— когда написана</tspan></text>
+    <rect class="rowbg" x="546" y="169" width="288" height="24" rx="6"/>
+    <text class="row hl" x="556" y="186">remind_at <tspan class="ru">— когда напомнить</tspan></text>
+    <text class="lnote new" x="556" y="230">+ индекс по remind_at</text>
+  </svg>
+</div>
+<ul class="points">
+  <li><b>remind_at</b> — когда напомнить: дата и время с точностью до секунды. Пусто — напоминания нет. Хранится как точный момент, поэтому одинаково понятен любому устройству.</li>
+  <li><b>Индекс</b> — служебная «закладка» базы. Помогает быстро найти заметки с напоминаниями, сколько бы заметок ни было. Данных не хранит.</li>
+  <li>Закрыли уведомление или убрали напоминание — поле снова становится пустым. Отдельной истории напоминаний нет.</li>
+</ul>
+
+<h3>Как приложение находит, что показать</h3>
+<p class="muted small">Каждая открытая вкладка спрашивает у базы «заметки, у которых remind_at не пусто», а дальше сравнивает их время с текущим. Пример: сейчас 23 октября, 14:31:00 по Москве.</p>
+<div class="lookup">
+  <div class="who-card">
+    <h3 style="margin:0">Рейс в Казань</h3>
+    <div class="ask">remind_at = <b>23.10 14:30:15</b></div>
+    <span class="result show">Время прошло → уведомление на экране</span>
+  </div>
+  <div class="who-card">
+    <h3 style="margin:0">Ставки на реф</h3>
+    <div class="ask">remind_at = <b>23.10 18:00:00</b></div>
+    <span class="result wait">Ещё рано → ждёт своей секунды</span>
+  </div>
+  <div class="who-card">
+    <h3 style="margin:0">Номер диспетчера</h3>
+    <div class="ask">remind_at = <b>пусто</b></div>
+    <span class="result none">Напоминания нет → не участвует</span>
+  </div>
+</div>
+
+<h3>Миграция</h3>
+<p class="muted small">Миграция — скрипт, который меняет устройство базы. Здесь она одна: <code>drizzle/0002_…sql</code>.</p>
+<ol class="steps">
+  <li><div><h3>Пустое поле remind_at у заметок <span class="tag-ok">данные не меняет</span></h3><p>У всех существующих заметок поле пустое: напоминаний ни у кого нет.</p></div></li>
+  <li><div><h3>Индекс по remind_at <span class="tag-ok">данные не меняет</span></h3><p>Служебная «закладка» для быстрого поиска напоминаний.</p></div></li>
+</ol>
+<div class="tablewrap">
+  <table class="t">
+    <tr><th>Что в базе</th><th>До выкатки</th><th>После выкатки</th></tr>
+    <tr><td>Контакты</td><td>как есть</td><td>то же, не трогались</td></tr>
+    <tr><td>Заметки</td><td>текст и время создания</td><td class="new">то же + пустое «когда напомнить»</td></tr>
+  </table>
+</div>
+<ul class="points">
+  <li><b>Что с уже существующими заметками:</b> текст и даты на месте, напоминаний нет, у каждой появится кнопка «Напомнить».</li>
+  <li><b>Откат:</b> прошлая версия приложения не знает о новом поле и работает как раньше. Базу откатывать не нужно: миграция при откате остаётся.</li>
+</ul>
+
+<!-- 5 -->
+<h2><span class="num">5</span>Как проверить руками</h2>
+<div class="prep">
+  <b>Подготовка.</b>
+  <ul>
+    <li>Запустить Docker Desktop, затем <code>pnpm db:migrate</code> (добавит новое поле) и <code>pnpm dev</code>, открыть http://localhost:3000 — см. README.</li>
+    <li>Чтобы не ждать долго, ставьте напоминания на 1–2 минуты вперёд.</li>
+    <li>Для «другого браузера» подойдёт Edge или окно инкогнито в Chrome.</li>
+    <li>Галочки на этой странице только для удобства и не сохраняются.</li>
+  </ul>
+</div>
+
+<div class="check-group">
+  <h3>Кнопка и окно</h3>
+  <label class="check"><input type="checkbox"><div><div class="sc">Окно у заметки без напоминания</div><div class="st">Открыть контакт → у заметки нажать «Напомнить» <span class="arrow">→</span> окно «Напоминание»: московское время на час вперёд, с секундами (около полуночи — уже завтрашняя дата), кнопки «Убрать напоминание» нет.</div></div></label>
+  <label class="check"><input type="checkbox"><div><div class="sc">Окно у заметки с напоминанием</div><div class="st">У заметки с подписью «Напомню …» нажать «Напомнить» <span class="arrow">→</span> в полях время этого напоминания, есть «Убрать напоминание».</div></div></label>
+  <label class="check"><input type="checkbox"><div><div class="sc">Закрыли окно без сохранения</div><div class="st">Открыть окно, поменять время, закрыть крестиком; повторить с Esc и щелчком мимо окна <span class="arrow">→</span> у заметки всё как было.</div></div></label>
+</div>
+
+<div class="check-group">
+  <h3>Сохранение</h3>
+  <label class="check"><input type="checkbox"><div><div class="sc">Сохранили время в будущем</div><div class="st">Поставить время на 2 минуты вперёд → «Сохранить» <span class="arrow">→</span> окно закрылось, у заметки «Напомню 23 октября 2026 г. в 14:32:00» (с вашими датой и временем).</div></div></label>
+  <label class="check"><input type="checkbox"><div><div class="sc">Время уже прошло</div><div class="st">Открыть окно, поставить вчерашнюю дату и «Сохранить»; затем сегодняшнюю дату и время на минуту раньше текущего <span class="arrow">→</span> оба раза ошибка «Это время уже прошло — выберите время в будущем», окно открыто, у заметки ничего не появилось.</div></div></label>
+  <label class="check"><input type="checkbox"><div><div class="sc">Не заполнили дату или время</div><div class="st">Очистить поле «Время» → «Сохранить» <span class="arrow">→</span> браузер просит заполнить поле, окно открыто, ничего не сохранилось. То же с «Датой».</div></div></label>
+  <label class="check"><input type="checkbox"><div><div class="sc">Изменили время напоминания</div><div class="st">Напоминание на 14:32 → «Напомнить» → поставить 14:34 → «Сохранить» <span class="arrow">→</span> у заметки «в 14:34:00»; в 14:32 уведомления нет, в 14:34 есть.</div></div></label>
+  <label class="check"><input type="checkbox"><div><div class="sc">Тот же адрес в другом браузере</div><div class="st">Открыть ту же карточку в другом браузере <span class="arrow">→</span> у заметки то же «Напомню …».</div></div></label>
+</div>
+
+<div class="check-group">
+  <h3>Московское время</h3>
+  <label class="check"><input type="checkbox"><div><div class="sc">Устройство в другом часовом поясе</div><div class="st">Windows: Параметры → Время и язык → Дата и время → часовой пояс «Новосибирск» → обновить страницу → «Напомнить» <span class="arrow">→</span> в окне московское время, на 4 часа меньше часов Windows. Поставить на 2 минуты вперёд по Москве <span class="arrow">→</span> уведомление через 2 минуты. Потом вернуть пояс обратно.</div></div></label>
+  <label class="check"><input type="checkbox"><div><div class="sc">Время создания заметки</div><div class="st">Написать заметку <span class="arrow">→</span> у неё текущее московское время. После выкатки то же на https://app.volki-lzkv.ru: без сдвига на 3 часа.</div></div></label>
+</div>
+
+<div class="check-group">
+  <h3>Удаление</h3>
+  <label class="check"><input type="checkbox"><div><div class="sc">Убрали напоминание</div><div class="st">У заметки с напоминанием «Напомнить» → «Убрать напоминание» <span class="arrow">→</span> окно закрылось, подписи «Напомню …» нет, в то время уведомление не всплыло.</div></div></label>
+  <label class="check"><input type="checkbox"><div><div class="sc">Удалили контакт</div><div class="st">Создать тестовый контакт, заметку, напоминание на 2 минуты вперёд → удалить контакт <span class="arrow">→</span> через 2 минуты уведомления нет.</div></div></label>
+</div>
+
+<div class="check-group">
+  <h3>Уведомление</h3>
+  <label class="check"><input type="checkbox"><div><div class="sc">Время наступило, приложение открыто</div><div class="st">Поставить напоминание на 1 минуту вперёд, перейти на список контактов <span class="arrow">→</span> в эту секунду в левом верхнем углу: имя контакта, начало заметки, «Открыть карточку», крестик.</div></div></label>
+  <label class="check"><input type="checkbox"><div><div class="sc">Несколько уведомлений</div><div class="st">Два напоминания у разных заметок на 14:40:00 и 14:40:10 <span class="arrow">→</span> оба уведомления друг под другом, сверху то, что на 14:40:00.</div></div></label>
+  <label class="check"><input type="checkbox"><div><div class="sc">Перешли по ссылке</div><div class="st">В уведомлении «Открыть карточку» <span class="arrow">→</span> открылась карточка контакта, уведомление на месте.</div></div></label>
+  <label class="check"><input type="checkbox"><div><div class="sc">Обновили страницу</div><div class="st">При открытом уведомлении F5, потом переход на другую страницу <span class="arrow">→</span> уведомление оба раза на месте.</div></div></label>
+  <label class="check"><input type="checkbox"><div><div class="sc">Закрыли уведомление</div><div class="st">Нажать крестик <span class="arrow">→</span> исчезло; после F5 не вернулось; у заметки нет «Напомню …»; во втором браузере пропало в течение 15 секунд.</div></div></label>
+  <label class="check"><input type="checkbox"><div><div class="sc">Напоминание поставили в другом браузере</div><div class="st">Открыть приложение в двух браузерах, в первом поставить напоминание на 1 минуту вперёд <span class="arrow">→</span> всплывает в обоих; во втором — не позже чем через 15 секунд.</div></div></label>
+</div>
+
+<div class="check-group">
+  <h3>Пропущенные</h3>
+  <label class="check"><input type="checkbox"><div><div class="sc">Открыли приложение после времени напоминания</div><div class="st">Поставить два напоминания на 1 минуту вперёд, закрыть все вкладки приложения, подождать 2 минуты, открыть любую страницу <span class="arrow">→</span> сразу оба уведомления, друг под другом.</div></div></label>
+</div>
+
+<!-- 6 -->
+<h2><span class="num">6</span>Что агент решил сам</h2>
+<div class="two">
+  <div class="card box-card">
+    <h3>Продуктовые — стоит просмотреть</h3>
+    <ul class="points small">
+      <li>Закрыли уведомление — напоминание выполнено: подпись у заметки пропадает, можно поставить новое.</li>
+      <li>«Открыть карточку» уведомление не закрывает, закрывает только крестик.</li>
+      <li>В стопке сверху — то, чьё время наступило раньше.</li>
+      <li>В уведомлении видны первые 3 строки заметки.</li>
+      <li>Окно у заметки с напоминанием открывается с его временем, а не с «сейчас».</li>
+      <li>В другом браузере уведомление может прийти позже, до 15 секунд; в давно свёрнутой вкладке — до минуты.</li>
+      <li>Кнопка «Напомнить» — в строке с датой заметки; подпись «Напомню 23 октября 2026 г. в 14:30:15» — под текстом. Пометки «МСК» у времени нет.</li>
+      <li>«Убрать напоминание» показывается, только когда напоминание есть.</li>
+    </ul>
+  </div>
+  <div class="card box-card">
+    <h3>Технические — на экраны не влияют</h3>
+    <ul class="points small">
+      <li>Одно поле в таблице заметок вместо отдельной таблицы: напоминание у заметки одно.</li>
+      <li>Индекс по этому полю, чтобы частая проверка «что пора показать» не нагружала базу.</li>
+      <li>Дата и время уходят на сервер как введены, и уже сервер читает их как московские.</li>
+      <li>Проверку «время в будущем» делает сервер, а не только окно.</li>
+      <li>Вкладка обновляет список напоминаний раз в 15 секунд и когда к ней возвращаются.</li>
+      <li>Закрытие старого уведомления не сотрёт напоминание, если его тем временем перенесли в другом браузере.</li>
+      <li>Поля даты и времени встроены в браузер, новых библиотек нет.</li>
+      <li>После удаления контакта вкладка сразу заново спрашивает напоминания. Без этого напоминание его заметки, наступившее до следующей проверки, могло бы всплыть уже после удаления.</li>
+      <li>Автотесты не добавляются: для них нужна новая библиотека, а это решение за вами.</li>
+      <li>Требования записаны в формате OpenSpec вручную: программа OpenSpec не установлена.</li>
+    </ul>
+  </div>
+</div>
+
+<!-- 7 -->
+<h2><span class="num">7</span>Что осталось неясным</h2>
+<div class="card">
+  <p>Вопросов нет. Последний — что подставлять в окно — решён: время на час вперёд.</p>
+</div>
+
+<footer>Собрано по <code>openspec/changes/archive/2026-10-23-note-reminders/</code> и коду в ветке <code>note-reminders</code>. Действующие требования — <code>openspec/specs/note-reminders/spec.md</code>. Страница только показывает, ничего не меняет.</footer>
+</div>
+</body>
+</html>

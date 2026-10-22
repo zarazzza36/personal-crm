@@ -1,16 +1,22 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeftIcon } from "lucide-react";
+import { ArrowLeftIcon, BellIcon } from "lucide-react";
 
 import { ContactAvatar } from "@/components/contact-avatar";
 import { EditContactButton } from "@/components/contact-dialog";
 import { DeleteContactButton } from "@/components/delete-contact-button";
 import { NoteForm } from "@/components/note-form";
+import { ReminderButton } from "@/components/reminder-button";
 import { getContact, listNotes } from "@/db/queries";
 import { bodyTypeLabels } from "@/lib/body-types";
 import { parseContactId } from "@/lib/contact-input";
-import { formatCubicMeters, formatDateTime, formatTons } from "@/lib/format";
+import {
+  formatCubicMeters,
+  formatDateTime,
+  formatDateTimeWithSeconds,
+  formatTons,
+} from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 type Params = PageProps<"/contacts/[id]">["params"];
@@ -103,13 +109,27 @@ async function ContactCard({ params }: { params: Params }) {
           <ul className="mt-6 grid gap-2.5" aria-label="Заметки о контакте">
             {notes.map((note) => (
               <li key={note.id} className="rounded-16 bg-asphalt p-5">
-                <time
-                  dateTime={note.createdAt.toISOString()}
-                  className="text-xs tracking-label text-accent"
-                >
-                  {formatDateTime(note.createdAt)}
-                </time>
+                <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+                  <time
+                    dateTime={note.createdAt.toISOString()}
+                    className="text-xs tracking-label text-accent"
+                  >
+                    {formatDateTime(note.createdAt)}
+                  </time>
+                  <ReminderButton noteId={note.id} remindAt={note.remindAt} />
+                </div>
                 <p className="mt-2 leading-normal break-words whitespace-pre-wrap">{note.body}</p>
+                {note.remindAt && (
+                  <p className="mt-3 flex items-center gap-1.5 text-13 text-muted-foreground">
+                    <BellIcon aria-hidden className="size-3.5 shrink-0 text-accent" />
+                    <span>
+                      Напомню{" "}
+                      <time dateTime={note.remindAt.toISOString()}>
+                        {formatDateTimeWithSeconds(note.remindAt)}
+                      </time>
+                    </span>
+                  </p>
+                )}
               </li>
             ))}
           </ul>

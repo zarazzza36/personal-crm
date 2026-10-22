@@ -1,0 +1,2 @@
+ALTER TABLE "notes" ADD COLUMN "remind_at" timestamp with time zone;--> statement-breakpoint
+CREATE INDEX "notes_remind_at_idx" ON "notes" USING btree ("remind_at") WHERE "notes"."remind_at" is not null;

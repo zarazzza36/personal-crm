@@ -1,11 +1,12 @@
 import "server-only";
 
-import { and, asc, desc, eq, gte, inArray, lte, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNotNull, lte, or, sql, type SQL } from "drizzle-orm";
 import type { PgColumn } from "drizzle-orm/pg-core";
 
 import { bodyTypesMatching } from "@/lib/body-types";
 import type { ContactCursor, ContactListItem, ContactsPage } from "@/lib/contact-list";
 import { parseContactSearch, type Range } from "@/lib/contact-search";
+import { NOTE_EXCERPT_LENGTH, type Reminder } from "@/lib/reminders";
 
 import { db } from "./index";
 import { contacts, notes } from "./schema";
@@ -104,6 +105,24 @@ export async function getContactListItem(id: number): Promise<ContactListItem | 
 export async function getContact(id: number) {
   const [contact] = await db.select().from(contacts).where(eq(contacts.id, id));
   return contact;
+}
+
+/** Every note with a reminder, due or still ahead, the earliest first. */
+export async function listReminders(): Promise<Reminder[]> {
+  const rows = await db
+    .select({
+      noteId: notes.id,
+      remindAt: notes.remindAt,
+      contactId: contacts.id,
+      contactName: contacts.name,
+      noteExcerpt: sql<string>`left(${notes.body}, ${NOTE_EXCERPT_LENGTH})`,
+    })
+    .from(notes)
+    .innerJoin(contacts, eq(notes.contactId, contacts.id))
+    .where(isNotNull(notes.remindAt))
+    .orderBy(asc(notes.remindAt), asc(notes.id));
+
+  return rows.flatMap(({ remindAt, ...row }) => (remindAt ? [{ ...row, remindAt }] : []));
 }
 
 export async function listNotes(contactId: number) {

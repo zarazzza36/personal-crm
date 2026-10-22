@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import { index, integer, numeric, pgEnum, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 
 import { bodyTypes } from "../lib/body-types";
@@ -28,6 +29,12 @@ export const notes = pgTable(
       .references(() => contacts.id, { onDelete: "cascade" }),
     body: text("body").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    // When to remind about the note; null when there is no reminder.
+    remindAt: timestamp("remind_at", { withTimezone: true }),
   },
-  (table) => [index("notes_contact_id_idx").on(table.contactId)],
+  (table) => [
+    index("notes_contact_id_idx").on(table.contactId),
+    // Every open tab asks for the notes with a reminder every 15 seconds.
+    index("notes_remind_at_idx").on(table.remindAt).where(sql`${table.remindAt} is not null`),
+  ],
 );

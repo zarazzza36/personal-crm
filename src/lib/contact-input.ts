@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { bodyTypes } from "./body-types";
+import { fromMoscowInput } from "./moscow-time";
 
 const optionalText = (maxLength: number) =>
   z
@@ -61,6 +62,27 @@ export const noteInputSchema = z.object({
     .min(1, "Напишите текст заметки")
     .max(5000, "Не длиннее 5000 символов"),
 });
+
+export const noteIdSchema = z.number().int().positive();
+
+/** Reminder date and time typed in Moscow time; parses to the moment, which must be ahead. */
+export const reminderInputSchema = z
+  .object({ date: z.string(), time: z.string() })
+  .transform(({ date, time }, context) => {
+    const remindAt = fromMoscowInput(date, time);
+    if (!remindAt) {
+      context.addIssue({ code: "custom", message: "Укажите дату и время" });
+      return z.NEVER;
+    }
+    if (remindAt.getTime() <= Date.now()) {
+      context.addIssue({
+        code: "custom",
+        message: "Это время уже прошло — выберите время в будущем",
+      });
+      return z.NEVER;
+    }
+    return remindAt;
+  });
 
 /** Raw contact form values, exactly as typed by the user. */
 export type ContactFormValues = Record<keyof z.input<typeof contactInputSchema>, string>;

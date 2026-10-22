@@ -15,6 +15,13 @@
       "when": 1792265790737,
       "tag": "0001_add_truck_fields",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792702233562,
+      "tag": "0002_add_note_reminders",
+      "breakpoints": true
     }
   ]
 }

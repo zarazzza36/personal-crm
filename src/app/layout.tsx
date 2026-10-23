@@ -17,8 +17,22 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
+  // Full addresses in the link preview tags, such as the image's, start with it.
+  metadataBase: new URL("https://app.volki-lzkv.ru"),
   title: "Волки с Лизюкова",
   description: "Контакты людей, которых я знаю лично",
+  // Link preview in messengers, the same as the landing's. The image is
+  // opengraph-image.png next to this file, a copy of the landing's og-image.png.
+  // Pages set no metadata of their own, so every page shows this preview.
+  openGraph: {
+    type: "website",
+    locale: "ru_RU",
+    siteName: "Волки с Лизюкова",
+    url: "/",
+    title: "Волки с Лизюкова",
+    description: "Все контакты и заметки в одном месте. Больше никакой путаницы при организации рейсов",
+  },
+  twitter: { card: "summary_large_image" },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

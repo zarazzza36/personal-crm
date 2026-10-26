@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { bodyTypes } from "./body-types";
+import { contactFrequencies } from "./contact-frequency";
 import { fromMoscowInput } from "./moscow-time";
 
 const optionalText = (maxLength: number) =>
@@ -53,6 +54,10 @@ export const contactInputSchema = z.object({
     .string()
     .transform((value) => (value === "" ? null : value))
     .pipe(z.enum(bodyTypes, "Выберите тип кузова из списка").nullable()),
+  contactFrequency: z
+    .string()
+    .transform((value) => (value === "" ? null : value))
+    .pipe(z.enum(contactFrequencies, "Выберите частоту из списка").nullable()),
 });
 
 export const noteInputSchema = z.object({

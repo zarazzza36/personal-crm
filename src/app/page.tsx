@@ -2,12 +2,14 @@ import { Suspense } from "react";
 
 import { AddContactButton } from "@/components/contact-dialog";
 import { ContactList } from "@/components/contact-list";
+import { KeepInTouch } from "@/components/keep-in-touch";
 import { ScrollToTopButton } from "@/components/scroll-to-top-button";
 import { SearchInput } from "@/components/search-input";
 import {
   countContacts,
   getContactListItem,
   listContactsPage,
+  listDueContacts,
   searchContacts,
 } from "@/db/queries";
 import { parseContactId } from "@/lib/contact-input";
@@ -40,13 +42,15 @@ async function Contacts({ searchParams }: { searchParams: SearchParams }) {
   // A search shows only what it has found, without the just-added contact on top.
   const addedId = query ? null : parseContactId(firstValue(params.added));
 
-  const [firstPage, total, addedContact] = await Promise.all([
+  const [firstPage, total, addedContact, dueContacts] = await Promise.all([
     // A search shows everything it has found at once; the full list loads part by part.
     query
       ? searchContacts(query).then((items): ContactsPage => ({ items, nextCursor: null }))
       : listContactsPage(null, CONTACTS_PAGE_SIZE),
     countContacts(),
     addedId ? getContactListItem(addedId) : undefined,
+    // A search shows only what it has found, without "Пора связаться".
+    query ? [] : listDueContacts(),
   ]);
 
   return (
@@ -73,6 +77,7 @@ async function Contacts({ searchParams }: { searchParams: SearchParams }) {
       </header>
 
       <div className={COLUMN}>
+        {dueContacts.length > 0 && <KeepInTouch contacts={dueContacts} />}
         {firstPage.items.length > 0 ? (
           <ContactList firstPage={firstPage} addedContact={addedContact ?? null} />
         ) : (

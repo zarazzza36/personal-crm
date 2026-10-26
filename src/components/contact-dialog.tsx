@@ -26,6 +26,11 @@ import {
 } from "@/components/ui/select";
 import { bodyTypeLabels, bodyTypes, type BodyType } from "@/lib/body-types";
 import {
+  contactFrequencies,
+  contactFrequencyLabels,
+  type ContactFrequency,
+} from "@/lib/contact-frequency";
+import {
   contactFormFields,
   type ContactFormErrors,
   type ContactFormValues,
@@ -41,6 +46,7 @@ type EditableContact = {
   capacityTons: number | null;
   volumeCubicMeters: number | null;
   bodyType: BodyType | null;
+  contactFrequency: ContactFrequency | null;
 };
 
 type FormState = { values: ContactFormValues; errors: ContactFormErrors };
@@ -54,6 +60,7 @@ const emptyValues: ContactFormValues = {
   capacityTons: "",
   volumeCubicMeters: "",
   bodyType: "",
+  contactFrequency: "",
 };
 
 // The form shows a decimal comma, as people write it: "1,5".
@@ -136,6 +143,7 @@ function ContactForm({ contact, onSaved }: { contact?: EditableContact; onSaved:
             capacityTons: amountToText(contact.capacityTons),
             volumeCubicMeters: amountToText(contact.volumeCubicMeters),
             bodyType: contact.bodyType ?? "",
+            contactFrequency: contact.contactFrequency ?? "",
           }
         : emptyValues,
       errors: {},
@@ -182,6 +190,13 @@ function ContactForm({ contact, onSaved }: { contact?: EditableContact; onSaved:
         defaultValue={values.email}
         error={errors.email}
       />
+      <SelectField
+        name="contactFrequency"
+        label="Как часто общаться"
+        items={contactFrequencyItems}
+        defaultValue={values.contactFrequency}
+        error={errors.contactFrequency}
+      />
       <div className="grid grid-cols-2 gap-4">
         <Field
           name="capacityTons"
@@ -200,7 +215,13 @@ function ContactForm({ contact, onSaved }: { contact?: EditableContact; onSaved:
           error={errors.volumeCubicMeters}
         />
       </div>
-      <BodyTypeField defaultValue={values.bodyType} error={errors.bodyType} />
+      <SelectField
+        name="bodyType"
+        label="Тип кузова"
+        items={bodyTypeItems}
+        defaultValue={values.bodyType}
+        error={errors.bodyType}
+      />
       <DialogFooter>
         <DialogClose render={<Button type="button" variant="outline" />}>Отмена</DialogClose>
         <Button type="submit" disabled={isPending}>
@@ -242,33 +263,57 @@ function Field({
   );
 }
 
-// "Не указан" clears the choice: the form then sends an empty value, as for an empty field.
-const bodyTypeItems = [
+type SelectItems = { value: string | null; label: string }[];
+
+// The first item clears the choice: the form then sends an empty value, as for an empty field.
+const bodyTypeItems: SelectItems = [
   { value: null, label: "Не указан" },
   ...bodyTypes.map((type) => ({ value: type, label: bodyTypeLabels[type] })),
 ];
 
+const contactFrequencyItems: SelectItems = [
+  { value: null, label: "Не задано" },
+  ...contactFrequencies.map((frequency) => ({
+    value: frequency,
+    label: contactFrequencyLabels[frequency],
+  })),
+];
+
 // Not the browser's own list: that one opens light on Windows, with the light text unreadable.
-function BodyTypeField({ defaultValue, error }: { defaultValue: string; error?: string }) {
+function SelectField({
+  name,
+  label,
+  items,
+  defaultValue,
+  error,
+}: {
+  name: keyof ContactFormValues;
+  label: string;
+  items: SelectItems;
+  defaultValue: string;
+  error?: string;
+}) {
   const id = useId();
   const errorId = `${id}-error`;
 
   return (
     <div className="grid gap-1.5">
-      <Label htmlFor={id}>Тип кузова</Label>
-      <Select name="bodyType" items={bodyTypeItems} defaultValue={defaultValue || null}>
+      <Label htmlFor={id}>{label}</Label>
+      {/* The form gets the sent values back as defaults after saving; Base UI does not take
+          a changed default, so a new one starts the list anew. */}
+      <Select key={defaultValue} name={name} items={items} defaultValue={defaultValue || null}>
         <SelectTrigger
           id={id}
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? errorId : undefined}
           className="w-full"
         >
-          <SelectValue placeholder="Не указан" />
+          <SelectValue placeholder={items[0].label} />
         </SelectTrigger>
         {/* Opens below the field, or above it when there is more room there:
             the whole list fits even near the bottom of a short screen. */}
         <SelectContent alignItemWithTrigger={false}>
-          {bodyTypeItems.map((item) => (
+          {items.map((item) => (
             <SelectItem key={item.value ?? "none"} value={item.value}>
               {item.label}
             </SelectItem>

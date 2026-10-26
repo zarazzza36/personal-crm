@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { refresh, revalidatePath } from "next/cache";
 import { redirect, RedirectType } from "next/navigation";
 
@@ -36,7 +36,13 @@ export async function createContact(input: unknown): Promise<SaveContactResult> 
     return { ok: false, errors: fieldErrors(parsed.error) };
   }
 
-  const [created] = await db.insert(contacts).values(parsed.data).returning({ id: contacts.id });
+  const [created] = await db
+    .insert(contacts)
+    .values({
+      ...parsed.data,
+      contactFrequencySetAt: parsed.data.contactFrequency ? sql`now()` : null,
+    })
+    .returning({ id: contacts.id });
   return { ok: true, id: created.id };
 }
 
@@ -47,9 +53,18 @@ export async function updateContact(id: unknown, input: unknown): Promise<SaveCo
     return { ok: false, errors: fieldErrors(parsed.error) };
   }
 
+  // Decided by the row being updated, so a save with the same frequency keeps the countdown.
+  const frequency = sql`${parsed.data.contactFrequency}::contact_frequency`;
   const [updated] = await db
     .update(contacts)
-    .set(parsed.data)
+    .set({
+      ...parsed.data,
+      contactFrequencySetAt: sql`case
+        when ${frequency} is null then null
+        when ${frequency} = ${contacts.contactFrequency} then ${contacts.contactFrequencySetAt}
+        else now()
+      end`,
+    })
     .where(eq(contacts.id, contactId))
     .returning({ id: contacts.id });
   if (!updated) {
@@ -81,6 +96,9 @@ export async function addNote(contactId: unknown, body: unknown): Promise<AddNot
 
   await db.insert(notes).values({ contactId: id, body: parsed.data.body });
 
+  // A note restarts the countdown: "Пора связаться" on the list must not show the contact
+  // when the list is opened by a link or by the browser's "Back".
+  revalidatePath("/");
   refresh();
   return { ok: true };
 }

@@ -1,11 +1,32 @@
 import "server-only";
 
-import { and, asc, desc, eq, gte, inArray, isNotNull, lte, or, sql, type SQL } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  getTableColumns,
+  gte,
+  inArray,
+  isNotNull,
+  lte,
+  max,
+  or,
+  sql,
+  type SQL,
+  type SQLWrapper,
+} from "drizzle-orm";
 import type { PgColumn } from "drizzle-orm/pg-core";
 
 import { bodyTypesMatching } from "@/lib/body-types";
+import {
+  contactFrequencies,
+  type ContactFrequency,
+  type DueContact,
+} from "@/lib/contact-frequency";
 import type { ContactCursor, ContactListItem, ContactsPage } from "@/lib/contact-list";
 import { parseContactSearch, type Range } from "@/lib/contact-search";
+import { appTimeZone } from "@/lib/moscow-time";
 import { NOTE_EXCERPT_LENGTH, type Reminder } from "@/lib/reminders";
 
 import { db } from "./index";
@@ -26,6 +47,51 @@ const nameInRussianOrder = sql`${contacts.name} collate "ru-x-icu"`;
 
 // Russian alphabetical order; the id keeps namesakes in a fixed order.
 const alphabeticalOrder = [nameInRussianOrder, asc(contacts.id)];
+
+// The moment of the contact's last note, null without notes; joined laterally to each contact.
+const lastNote = db
+  .select({ at: max(notes.createdAt).as("last_note_at") })
+  .from(notes)
+  .where(eq(notes.contactId, contacts.id))
+  .as("last_note");
+
+const frequencyIntervals: Record<ContactFrequency, string> = {
+  week: "7 days",
+  month: "1 month",
+  quarter: "3 months",
+  year: "1 year",
+};
+
+/** The Moscow date of the moment: neither the time of day nor the server's zone matters. */
+function moscowDay(moment: SQLWrapper) {
+  return sql`(${moment} at time zone ${appTimeZone})::date`;
+}
+
+const today = moscowDay(sql`now()`);
+
+/**
+ * The Moscow day it is time to talk to the contact again ("2026-11-15"); null without a frequency.
+ * The frequency counts from the day of the last note, or, before the first note, from the day
+ * the frequency was set. Months are calendar ones: PostgreSQL moves 31 January + 1 month
+ * to the last day of February. Needs `lastNote` joined.
+ */
+const dueDay = sql<string | null>`(
+  ${moscowDay(sql`coalesce(${lastNote.at}, ${contacts.contactFrequencySetAt})`)}
+  + case ${contacts.contactFrequency}
+    ${sql.join(
+      contactFrequencies.map(
+        (frequency) => sql`when ${frequency} then ${frequencyIntervals[frequency]}::interval`,
+      ),
+      sql` `,
+    )}
+  end
+)::date`;
+
+// From the due day on, it is time: the contact is in "Пора связаться".
+const isDue = sql<boolean>`coalesce(${dueDay} <= ${today}, false)`;
+
+// Days since the last note; null without notes.
+const daysSinceLastNote = sql<number | null>`${today} - ${moscowDay(lastNote.at)}`;
 
 function escapeLikePattern(value: string) {
   return value.replace(/[\\%_]/g, "\\$&");
@@ -102,9 +168,33 @@ export async function getContactListItem(id: number): Promise<ContactListItem | 
   return contact;
 }
 
+/** The contact with the day it is time to talk to them again. */
 export async function getContact(id: number) {
-  const [contact] = await db.select().from(contacts).where(eq(contacts.id, id));
+  const [contact] = await db
+    .select({ ...getTableColumns(contacts), dueDay, isDue })
+    .from(contacts)
+    .crossJoinLateral(lastNote)
+    .where(eq(contacts.id, id));
   return contact;
+}
+
+/** Contacts it is time to talk to: the earliest due day first, then alphabetically. */
+export async function listDueContacts(): Promise<DueContact[]> {
+  const rows = await db
+    .select({
+      id: contacts.id,
+      name: contacts.name,
+      contactFrequency: contacts.contactFrequency,
+      daysSinceLastNote,
+    })
+    .from(contacts)
+    .crossJoinLateral(lastNote)
+    .where(and(isNotNull(contacts.contactFrequency), isDue))
+    .orderBy(asc(dueDay), ...alphabeticalOrder);
+
+  return rows.flatMap(({ contactFrequency, ...row }) =>
+    contactFrequency ? [{ ...row, contactFrequency }] : [],
+  );
 }
 
 /** Every note with a reminder, due or still ahead, the earliest first. */

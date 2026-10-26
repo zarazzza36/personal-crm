@@ -7,6 +7,7 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 
 import type { BodyType } from "../lib/body-types";
+import { contactFrequencies } from "../lib/contact-frequency";
 import { contacts, notes } from "./schema";
 import { generateAbout, type Gender } from "./seed-about";
 
@@ -196,6 +197,22 @@ function generateTruck() {
   };
 }
 
+const FREQUENCY_SHARE = 0.1;
+
+// Frequencies draw from their own generator too: the people and notes stay what they were.
+const frequencyRandom = createRandom(20261026);
+
+// The frequency was set when the contact was added: those without recent notes are due at once.
+function generateFrequency(createdAt: Date) {
+  if (frequencyRandom() >= FREQUENCY_SHARE) {
+    return { contactFrequency: null, contactFrequencySetAt: null };
+  }
+  return {
+    contactFrequency: pick(contactFrequencies, frequencyRandom),
+    contactFrequencySetAt: createdAt,
+  };
+}
+
 function feminineSurname(surname: string) {
   if (/(ов|ев|ёв|ин|ын)$/.test(surname)) return `${surname}а`;
   if (/(ский|цкий)$/.test(surname)) return `${surname.slice(0, -2)}ая`;
@@ -232,6 +249,7 @@ function generateContacts(now: number) {
         ? `${transliterate(firstName)}.${transliterate(lastName)}@${pick(emailDomains)}`
         : null,
       ...truck,
+      ...generateFrequency(createdAt),
       createdAt,
     });
   }

@@ -2,8 +2,11 @@ import { sql } from "drizzle-orm";
 import { index, integer, numeric, pgEnum, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 
 import { bodyTypes } from "../lib/body-types";
+import { contactFrequencies } from "../lib/contact-frequency";
 
 export const bodyTypeEnum = pgEnum("body_type", bodyTypes);
+
+export const contactFrequencyEnum = pgEnum("contact_frequency", contactFrequencies);
 
 export const contacts = pgTable("contacts", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
@@ -17,6 +20,10 @@ export const contacts = pgTable("contacts", {
   capacityTons: numeric("capacity_tons", { precision: 6, scale: 2, mode: "number" }),
   volumeCubicMeters: numeric("volume_cubic_meters", { precision: 6, scale: 2, mode: "number" }),
   bodyType: bodyTypeEnum("body_type"),
+  // How often to talk to the contact; null when not set.
+  contactFrequency: contactFrequencyEnum("contact_frequency"),
+  // When the current frequency was set: the countdown starts here until the first note.
+  contactFrequencySetAt: timestamp("contact_frequency_set_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

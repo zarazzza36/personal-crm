@@ -22,6 +22,13 @@
       "when": 1792702233562,
       "tag": "0002_add_note_reminders",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793041899454,
+      "tag": "0003_add_contact_frequency",
+      "breakpoints": true
     }
   ]
 }

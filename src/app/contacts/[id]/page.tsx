@@ -8,13 +8,16 @@ import { EditContactButton } from "@/components/contact-dialog";
 import { DeleteContactButton } from "@/components/delete-contact-button";
 import { NoteForm } from "@/components/note-form";
 import { ReminderButton } from "@/components/reminder-button";
+import { TalkedButton } from "@/components/talked-button";
 import { getContact, listNotes } from "@/db/queries";
 import { bodyTypeLabels } from "@/lib/body-types";
+import { contactFrequencyLabels } from "@/lib/contact-frequency";
 import { parseContactId } from "@/lib/contact-input";
 import {
   formatCubicMeters,
   formatDateTime,
   formatDateTimeWithSeconds,
+  formatDay,
   formatTons,
 } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -83,6 +86,26 @@ async function ContactCard({ params }: { params: Params }) {
               <a href={`mailto:${contact.email}`} className="break-all hover:underline">
                 {contact.email}
               </a>
+            )}
+          </Detail>
+          <Detail label="Как часто общаться">
+            {contact.contactFrequency && (
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                <span>
+                  {contactFrequencyLabels[contact.contactFrequency]}
+                  {contact.isDue ? (
+                    " · пора связаться"
+                  ) : (
+                    contact.dueDay && (
+                      <>
+                        {" · связаться до "}
+                        <time dateTime={contact.dueDay}>{formatDay(contact.dueDay)}</time>
+                      </>
+                    )
+                  )}
+                </span>
+                <TalkedButton contactId={contact.id} />
+              </div>
             )}
           </Detail>
         </Details>

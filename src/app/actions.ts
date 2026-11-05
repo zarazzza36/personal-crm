@@ -19,11 +19,7 @@ import {
   type ContactFormErrors,
 } from "@/lib/contact-input";
 import { contactCursorSchema, contactsLimitSchema, type ContactsPage } from "@/lib/contact-list";
-import {
-  contactGroupsInputSchema,
-  groupIdSchema,
-  type SaveGroupResult,
-} from "@/lib/group-input";
+import { contactGroupsInputSchema, groupIdSchema, type SaveGroupResult } from "@/lib/group-input";
 import type { AddToGroupResult } from "@/lib/groups";
 import { reminderMomentSchema, type Reminder } from "@/lib/reminders";
 
@@ -223,7 +219,10 @@ export async function loadReminders(): Promise<Reminder[]> {
 }
 
 /** Sets the note's only reminder to `date` and `time` in Moscow time, replacing the old one. */
-export async function setNoteReminder(noteId: unknown, input: unknown): Promise<SaveReminderResult> {
+export async function setNoteReminder(
+  noteId: unknown,
+  input: unknown,
+): Promise<SaveReminderResult> {
   const id = noteIdSchema.parse(noteId);
   const parsed = reminderInputSchema.safeParse(input);
   if (!parsed.success) {

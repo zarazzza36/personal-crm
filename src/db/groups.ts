@@ -2,11 +2,7 @@ import "server-only";
 
 import { and, asc, count, eq, sql } from "drizzle-orm";
 
-import {
-  groupNameSchema,
-  type ContactGroupsInput,
-  type SaveGroupResult,
-} from "@/lib/group-input";
+import { groupNameSchema, type ContactGroupsInput, type SaveGroupResult } from "@/lib/group-input";
 import type { AddToGroupResult, Group, GroupListItem } from "@/lib/groups";
 
 import { db } from "./index";
@@ -151,7 +147,10 @@ export async function setContactGroups(
   await executor.execute(sql`
     insert into ${contactGroups} (contact_id, group_id)
     select ${contactId}::integer, ${groups.id} from ${groups}
-    where ${groups.id} in (${sql.join(Array.from(ids, (id) => sql`${id}`), sql`, `)})
+    where ${groups.id} in (${sql.join(
+      Array.from(ids, (id) => sql`${id}`),
+      sql`, `,
+    )})
     on conflict do nothing
   `);
 }

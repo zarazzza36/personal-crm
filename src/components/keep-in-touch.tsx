@@ -6,11 +6,7 @@ import Link from "next/link";
 import { addNote } from "@/app/actions";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  contactFrequencyLabels,
-  TALKED_NOTE_BODY,
-  type DueContact,
-} from "@/lib/contact-frequency";
+import { contactFrequencyLabels, TALKED_NOTE_BODY, type DueContact } from "@/lib/contact-frequency";
 import { formatDays, formatNumber } from "@/lib/format";
 
 /** How many contacts the block shows until "Показать всех" is pressed. */

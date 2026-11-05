@@ -52,7 +52,9 @@ export const notes = pgTable(
   (table) => [
     index("notes_contact_id_idx").on(table.contactId),
     // Every open tab asks for the notes with a reminder every 15 seconds.
-    index("notes_remind_at_idx").on(table.remindAt).where(sql`${table.remindAt} is not null`),
+    index("notes_remind_at_idx")
+      .on(table.remindAt)
+      .where(sql`${table.remindAt} is not null`),
   ],
 );
 

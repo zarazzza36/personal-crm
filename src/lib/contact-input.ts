@@ -61,11 +61,7 @@ export const contactInputSchema = z.object({
 });
 
 export const noteInputSchema = z.object({
-  body: z
-    .string()
-    .trim()
-    .min(1, "Напишите текст заметки")
-    .max(5000, "Не длиннее 5000 символов"),
+  body: z.string().trim().min(1, "Напишите текст заметки").max(5000, "Не длиннее 5000 символов"),
 });
 
 export const noteIdSchema = z.number().int().positive();

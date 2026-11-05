@@ -105,16 +105,14 @@ async function ContactCard({ params }: { params: Params }) {
               <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                 <span>
                   {contactFrequencyLabels[contact.contactFrequency]}
-                  {contact.isDue ? (
-                    " · пора связаться"
-                  ) : (
-                    contact.dueDay && (
-                      <>
-                        {" · связаться до "}
-                        <time dateTime={contact.dueDay}>{formatDay(contact.dueDay)}</time>
-                      </>
-                    )
-                  )}
+                  {contact.isDue
+                    ? " · пора связаться"
+                    : contact.dueDay && (
+                        <>
+                          {" · связаться до "}
+                          <time dateTime={contact.dueDay}>{formatDay(contact.dueDay)}</time>
+                        </>
+                      )}
                 </span>
                 <TalkedButton contactId={contact.id} />
               </div>

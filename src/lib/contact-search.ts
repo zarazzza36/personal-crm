@@ -21,10 +21,7 @@ const START = String.raw`(?<![\p{L}\d])`;
 const END = String.raw`(?![\p{L}\d])`;
 
 // "от 5 до 10 тонн"
-const RANGE = new RegExp(
-  String.raw`${START}от\s*${NUMBER}\s*до\s*${NUMBER}\s*${UNIT}${END}`,
-  "gu",
-);
+const RANGE = new RegExp(String.raw`${START}от\s*${NUMBER}\s*до\s*${NUMBER}\s*${UNIT}${END}`, "gu");
 // "5 т", "от 5 тонн", "до 40 м3", "5+ т", "5 тонн и больше", "82 куба и меньше"
 const AMOUNT = new RegExp(
   String.raw`${START}(?:(от|не менее|не меньше|до|не более|не больше)\s*)?${NUMBER}\s*(\+)?\s*${UNIT}${END}` +

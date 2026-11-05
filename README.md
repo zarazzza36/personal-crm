@@ -89,6 +89,9 @@ pnpm start
 | `pnpm build` | Сборка приложения |
 | `pnpm start` | Запуск собранного приложения |
 | `pnpm lint` | Проверка кода |
+| `pnpm format` | Выровнять оформление кода: отступы, переносы, кавычки |
+| `pnpm format:check` | Проверить оформление кода, ничего не меняя |
+| `pnpm typecheck` | Проверить типы TypeScript |
 | `pnpm test` | Запустить тесты |
 | `pnpm test:e2e` | Запустить e2e-тесты: настоящий браузер проходит сценарии в собранном приложении |
 | `pnpm db:generate` | Создать миграцию после изменения схемы в `src/db/schema.ts` |
@@ -133,6 +136,19 @@ pnpm exec playwright install chromium --no-shell
 - Тесты сами собирают приложение (`pnpm build`) и запускают его на http://localhost:3200, поэтому прогон занимает около минуты. Порт 3000 с `pnpm dev` или `pnpm start` не мешает тестам, тесты не мешают ему
 - Своя база — имя рабочей с приставкой `_e2e_test`, например `personal_crm_e2e_test`. Её тоже создают сами тесты и очищают перед каждым тестом; рабочие контакты и база обычных тестов не затрагиваются
 - Упал тест — в папке `test-results` лежат снимок экрана в момент ошибки и запись прохождения. Посмотреть запись: `pnpm exec playwright show-trace test-results/<папка теста>/trace.zip`
+
+## Проверки на GitHub (CI)
+
+На каждый PR в `main` GitHub сам запускает проверки — workflow «CI», файл `.github/workflows/ci.yml`. Результат виден внизу страницы PR:
+
+- «Lint, format, types» — `pnpm lint`, `pnpm format:check`, `pnpm typecheck`
+- «Vitest» — `pnpm test` на временной базе PostgreSQL, которая живёт только во время проверки
+- «Playwright» — `pnpm test:e2e`, тоже на временной базе. Упал тест — на странице запуска в разделе Artifacts лежит `playwright-report` со снимками и записью прохождения
+- «Image build» — сборка образа приложения по `Dockerfile`, без отправки в GHCR
+
+Ветка `main` защищена: в неё попадают только PR, и только когда все четыре проверки зелёные. Прямой push в `main` GitHub отклоняет. У PR включается автовлитие: PR вливается сам, как только проверки позеленеют.
+
+Красная проверка «Lint, format, types» из-за оформления чинится командой `pnpm format`.
 
 ## Сервер
 
@@ -223,6 +239,7 @@ sudo bash ~/server-setup/setup-deploy.sh ~/server-setup/deploy-keys.pub
 - e2e-тесты — в папке `e2e`, в файлах `*.spec.ts`. Настройка — `playwright.config.ts` (как собрать и запустить приложение для тестов), `e2e/prepare-database.ts` (создаёт базу e2e и применяет миграции), `e2e/fixtures.ts` (подключение к базе e2e, очистка перед каждым тестом)
 - `src/app/health` — адрес `/health` для проверки после выкатки: 200, если приложение работает и видит базу
 - `Dockerfile` — как собирается образ приложения
-- `.github/workflows/deploy.yml` — выкатка после push в `main`
+- `.github/workflows/deploy.yml` — выкатка после push в `main`; `.github/workflows/ci.yml` — проверки каждого PR
+- `.prettierrc.json`, `.prettierignore` — правила оформления кода для Prettier и что он не трогает
 - `deploy/app` — скрипты выкатки и `compose.yaml`, их выкатка копирует на сервер; `deploy/server` — разовая подготовка сервера
 - `specs` — описание продукта

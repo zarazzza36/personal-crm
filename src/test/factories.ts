@@ -12,7 +12,10 @@ export async function makeGroup(name: string) {
   return result.id;
 }
 
-export async function makeContact(name: string, values: Partial<typeof contacts.$inferInsert> = {}) {
+export async function makeContact(
+  name: string,
+  values: Partial<typeof contacts.$inferInsert> = {},
+) {
   const [contact] = await db
     .insert(contacts)
     .values({ ...values, name })

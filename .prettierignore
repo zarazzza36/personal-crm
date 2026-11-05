@@ -1,0 +1,13 @@
+# Prettier also skips everything in .gitignore.
+
+# Written by tools, not by hand.
+pnpm-lock.yaml
+drizzle/
+openspec/
+
+# Server scripts and pages: checked by a real deploy, kept as written.
+deploy/
+
+# Documents: texts for people, their layout is kept as written.
+*.md
+.claude/

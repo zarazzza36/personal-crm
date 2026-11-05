@@ -142,7 +142,9 @@ function DeleteGroupButton({ group }: { group: GroupListItem }) {
       <AlertDialogContent size="sm" initialFocus={cancelRef}>
         <AlertDialogHeader>
           {/* A long name without spaces breaks anywhere instead of widening the window. */}
-          <AlertDialogTitle className="wrap-anywhere">Удалить группу «{group.name}»?</AlertDialogTitle>
+          <AlertDialogTitle className="wrap-anywhere">
+            Удалить группу «{group.name}»?
+          </AlertDialogTitle>
           <AlertDialogDescription>
             Контакты останутся, они просто выйдут из группы.
           </AlertDialogDescription>

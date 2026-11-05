@@ -17,7 +17,9 @@ describe("contactsUrl", () => {
 
   // Scenario "Фильтр вместе с поиском": the query stays when a group is chosen
   it("keeps the query when a group is chosen", () => {
-    expect(contactsUrl({ query: "иван", groupId: 12 })).toBe("/?q=%D0%B8%D0%B2%D0%B0%D0%BD&group=12");
+    expect(contactsUrl({ query: "иван", groupId: 12 })).toBe(
+      "/?q=%D0%B8%D0%B2%D0%B0%D0%BD&group=12",
+    );
   });
 
   // Scenario "Сняли группу при запросе": the query stays when the group is unchosen
@@ -31,7 +33,9 @@ describe("contactsUrl", () => {
   });
 
   it("keeps the group when the query changes", () => {
-    expect(contactsUrl({ query: "пётр", groupId: 12 })).toBe("/?q=%D0%BF%D1%91%D1%82%D1%80&group=12");
+    expect(contactsUrl({ query: "пётр", groupId: 12 })).toBe(
+      "/?q=%D0%BF%D1%91%D1%82%D1%80&group=12",
+    );
   });
 
   it("escapes what would break the address", () => {

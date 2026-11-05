@@ -67,7 +67,9 @@ test("a contact added, found and noted is kept, the same in another browser", as
       new RegExp(NEW_CONTACT.name),
     ]);
 
-    await contactList(page).getByRole("link", { name: new RegExp(NEW_CONTACT.name) }).click();
+    await contactList(page)
+      .getByRole("link", { name: new RegExp(NEW_CONTACT.name) })
+      .click();
 
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(NEW_CONTACT.name);
     for (const value of Object.values(NEW_CONTACT)) {
@@ -103,7 +105,9 @@ test("a contact added, found and noted is kept, the same in another browser", as
       ]);
       await expect(contactsCount(other)).toHaveText("Всего: 3");
 
-      await contactList(other).getByRole("link", { name: new RegExp(NEW_CONTACT.name) }).click();
+      await contactList(other)
+        .getByRole("link", { name: new RegExp(NEW_CONTACT.name) })
+        .click();
       await expect(other.getByRole("heading", { level: 1 })).toHaveText(NEW_CONTACT.name);
       await expect(noteList(other).getByRole("listitem")).toHaveText([new RegExp(NOTE)]);
     } finally {

@@ -3,7 +3,7 @@
 
 import { db } from "@/db";
 import { createGroup } from "@/db/groups";
-import { contactGroups, contacts } from "@/db/schema";
+import { contactGroups, contacts, notes } from "@/db/schema";
 
 /** Creates a group that must succeed and gives its id. */
 export async function makeGroup(name: string) {
@@ -21,6 +21,26 @@ export async function makeContact(
     .values({ ...values, name })
     .returning({ id: contacts.id });
   return contact.id;
+}
+
+/**
+ * The moment `days` days before now, at the same time of day. Moscow has no daylight saving time,
+ * so in Moscow it is always `days` calendar days ago.
+ */
+export function daysAgo(days: number) {
+  return new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+}
+
+/** Adds a note to the contact, by default written now; gives its id. */
+export async function makeNote(
+  contactId: number,
+  values: Partial<Omit<typeof notes.$inferInsert, "contactId">> = {},
+) {
+  const [note] = await db
+    .insert(notes)
+    .values({ body: "Созвонились", ...values, contactId })
+    .returning({ id: notes.id });
+  return note.id;
 }
 
 export async function addToGroup(contactId: number, groupId: number) {

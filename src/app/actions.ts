@@ -1,11 +1,12 @@
 "use server";
 
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { refresh, revalidatePath } from "next/cache";
 import { redirect, RedirectType } from "next/navigation";
 import { z } from "zod";
 
 import { db } from "@/db";
+import * as contactData from "@/db/contacts";
 import * as groupData from "@/db/groups";
 import { listContactsPage, listReminders } from "@/db/queries";
 import { contacts, notes } from "@/db/schema";
@@ -70,23 +71,17 @@ export async function createContact(input: unknown, groups: unknown): Promise<Sa
   }
 
   // The contact and its groups are saved together or not at all.
-  const created = await db.transaction(async (tx) => {
-    const [row] = await tx
-      .insert(contacts)
-      .values({
-        ...parsed.contact,
-        contactFrequencySetAt: parsed.contact.contactFrequency ? sql`now()` : null,
-      })
-      .returning({ id: contacts.id });
-    await groupData.setContactGroups(tx, row.id, parsed.groups);
-    return row;
+  const createdId = await db.transaction(async (tx) => {
+    const id = await contactData.insertContact(tx, parsed.contact);
+    await groupData.setContactGroups(tx, id, parsed.groups);
+    return id;
   });
 
   if (parsed.groups.groupIds.length > 0 || parsed.groups.newGroupNames.length > 0) {
     // The groups' pages show the number of contacts and the new groups: refresh them too.
     revalidatePath("/", "layout");
   }
-  return { ok: true, id: created.id };
+  return { ok: true, id: createdId };
 }
 
 export async function updateContact(
@@ -100,31 +95,17 @@ export async function updateContact(
     return { ok: false, errors: parsed.errors };
   }
 
-  // Decided by the row being updated, so a save with the same frequency keeps the countdown.
-  const frequency = sql`${parsed.contact.contactFrequency}::contact_frequency`;
-  const updated = await db.transaction(async (tx) => {
-    const [row] = await tx
-      .update(contacts)
-      .set({
-        ...parsed.contact,
-        contactFrequencySetAt: sql`case
-          when ${frequency} is null then null
-          when ${frequency} = ${contacts.contactFrequency} then ${contacts.contactFrequencySetAt}
-          else now()
-        end`,
-      })
-      .where(eq(contacts.id, contactId))
-      .returning({ id: contacts.id });
-    if (!row) {
+  await db.transaction(async (tx) => {
+    const updatedId = await contactData.updateContact(tx, contactId, parsed.contact);
+    if (updatedId === undefined) {
       throw new Error(`Contact ${contactId} not found`);
     }
-    await groupData.setContactGroups(tx, row.id, parsed.groups);
-    return row;
+    await groupData.setContactGroups(tx, updatedId, parsed.groups);
   });
 
   // The contact is shown both in its card and in the list: refresh every page.
   revalidatePath("/", "layout");
-  return { ok: true, id: updated.id };
+  return { ok: true, id: contactId };
 }
 
 /** Deletes the contact with all its notes (the database cascades), then opens the list. */

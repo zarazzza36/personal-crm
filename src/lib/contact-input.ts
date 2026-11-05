@@ -85,6 +85,9 @@ export const reminderInputSchema = z
     return remindAt;
   });
 
+/** The contact's fields once the form is checked, as they are saved. */
+export type ContactInput = z.output<typeof contactInputSchema>;
+
 /** Raw contact form values, exactly as typed by the user. */
 export type ContactFormValues = Record<keyof z.input<typeof contactInputSchema>, string>;
 

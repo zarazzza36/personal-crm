@@ -231,7 +231,7 @@ sudo bash ~/server-setup/setup-deploy.sh ~/server-setup/deploy-keys.pub
 - Группы в интерфейсе: `src/components/contact-groups-field.tsx` — поле «Группы» в окне контакта, `src/components/contact-groups-editor.tsx` — строка «Группы» в карточке, `src/components/group-filter.tsx` — ряд фильтра на главной. `src/lib/contact-list.ts` собирает адрес списка с поиском и группой (`/?q=иван&group=12`), им пользуются и поиск, и кнопки фильтра
 - `src/lib/contact-search.ts` — как поиск понимает фразы про тонны и кубы; `src/lib/body-types.ts` — типы кузова и их другие названия для поиска
 - `src/lib/moscow-time.ts` — московское время: как дата и время из окна напоминания превращаются в момент и обратно
-- `src/lib/contact-frequency.ts` — частоты общения и их названия; `src/components/keep-in-touch.tsx` — блок «Пора связаться». Срок считает база одним выражением в `src/db/queries.ts`, его используют и блок, и карточка
+- `src/lib/contact-frequency.ts` — частоты общения и их названия; `src/components/keep-in-touch.tsx` — блок «Пора связаться». Срок считает база одним выражением в `src/db/queries.ts`, его используют и блок, и карточка. `src/db/contacts.ts` сохраняет контакт и решает, когда отсчёт срока начинается заново. Тесты: `src/db/keep-in-touch.test.ts` и `src/db/contacts.test.ts` — как считается срок, `e2e/keep-in-touch.spec.ts` — блок и карточка в браузере
 - `src/components/reminders.tsx` — уведомления о напоминаниях на всех страницах; каждая открытая вкладка раз в 15 секунд спрашивает сервер о новых напоминаниях
 - `openspec` — требования к фичам: `openspec/specs` — действующие, `openspec/changes` — те, что в работе, `openspec/changes/archive` — сделанные, с планом и страницей обзора
 - `drizzle` — миграции базы; `src/db/migrate.mts` применяет их на сервере

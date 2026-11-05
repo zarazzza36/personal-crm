@@ -1,11 +1,9 @@
 // Runs once before all the tests: makes sure the test database exists and has the current tables.
 
-import { drizzle } from "drizzle-orm/postgres-js";
-import { migrate } from "drizzle-orm/postgres-js/migrator";
-import postgres from "postgres";
 import type { TestProject } from "vitest/node";
 
-import { databaseName, testDatabaseUrl } from "./src/test/database-url";
+import { testDatabaseUrl } from "./src/test/database-url";
+import { prepareTestDatabase } from "./src/test/prepare-test-database";
 
 declare module "vitest" {
   export interface ProvidedContext {
@@ -20,24 +18,8 @@ export default async function setup(project: TestProject) {
     throw new Error("DATABASE_URL is not set. Copy .env.example to .env and fill it in.");
   }
   const testUrl = testDatabaseUrl(workingUrl);
-  const testName = databaseName(testUrl);
 
-  const server = postgres(workingUrl, { max: 1, onnotice: () => {} });
-  try {
-    const [existing] = await server`select 1 from pg_database where datname = ${testName}`;
-    if (!existing) {
-      await server`create database ${server(testName)}`;
-    }
-  } finally {
-    await server.end();
-  }
-
-  const client = postgres(testUrl, { max: 1, onnotice: () => {} });
-  try {
-    await migrate(drizzle(client), { migrationsFolder: "drizzle" });
-  } finally {
-    await client.end();
-  }
+  await prepareTestDatabase(workingUrl, testUrl);
 
   project.provide("testDatabaseUrl", testUrl);
 }

@@ -19,3 +19,11 @@ export function withDatabaseName(url: string, name: string) {
 export function testDatabaseUrl(workingUrl: string) {
   return withDatabaseName(workingUrl, `${databaseName(workingUrl)}${TEST_DATABASE_SUFFIX}`);
 }
+
+/**
+ * The address of the e2e database: `crm` → `crm_e2e_test`. Apart from the Vitest one, so the two
+ * kinds of tests may run at the same time without emptying each other's tables.
+ */
+export function e2eDatabaseUrl(workingUrl: string) {
+  return withDatabaseName(workingUrl, `${databaseName(workingUrl)}_e2e${TEST_DATABASE_SUFFIX}`);
+}

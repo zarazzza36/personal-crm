@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { PencilIcon, PlusIcon } from "lucide-react";
 
 import { createContact, updateContact } from "@/app/actions";
+import { ContactGroupsField } from "@/components/contact-groups-field";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -35,6 +36,7 @@ import {
   type ContactFormErrors,
   type ContactFormValues,
 } from "@/lib/contact-input";
+import type { Group } from "@/lib/groups";
 
 type EditableContact = {
   id: number;
@@ -68,7 +70,7 @@ function amountToText(value: number | null) {
   return value === null ? "" : String(value).replace(".", ",");
 }
 
-export function AddContactButton() {
+export function AddContactButton({ groups }: { groups: Group[] }) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -83,13 +85,23 @@ export function AddContactButton() {
         <DialogHeader>
           <DialogTitle>Новый контакт</DialogTitle>
         </DialogHeader>
-        <ContactForm onSaved={() => setOpen(false)} />
+        <ContactForm groups={groups} onSaved={() => setOpen(false)} />
       </DialogContent>
     </Dialog>
   );
 }
 
-export function EditContactButton({ contact }: { contact: EditableContact }) {
+export function EditContactButton({
+  contact,
+  groups,
+  groupIds,
+}: {
+  contact: EditableContact;
+  /** Every group that exists. */
+  groups: Group[];
+  /** The groups the contact is in: they are checked in the window. */
+  groupIds: number[];
+}) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -102,13 +114,28 @@ export function EditContactButton({ contact }: { contact: EditableContact }) {
         <DialogHeader>
           <DialogTitle>Изменить контакт</DialogTitle>
         </DialogHeader>
-        <ContactForm contact={contact} onSaved={() => setOpen(false)} />
+        <ContactForm
+          contact={contact}
+          groups={groups}
+          groupIds={groupIds}
+          onSaved={() => setOpen(false)}
+        />
       </DialogContent>
     </Dialog>
   );
 }
 
-function ContactForm({ contact, onSaved }: { contact?: EditableContact; onSaved: () => void }) {
+function ContactForm({
+  contact,
+  groups,
+  groupIds = [],
+  onSaved,
+}: {
+  contact?: EditableContact;
+  groups: Group[];
+  groupIds?: number[];
+  onSaved: () => void;
+}) {
   const router = useRouter();
 
   const [{ values, errors }, formAction, isPending] = useActionState(
@@ -118,9 +145,15 @@ function ContactForm({ contact, onSaved }: { contact?: EditableContact; onSaved:
         submitted[field] = String(formData.get(field) ?? "");
       }
 
+      // The checked groups and the new names: the groups field puts them into the form.
+      const submittedGroups = {
+        groupIds: formData.getAll("groupIds").map(Number),
+        newGroupNames: formData.getAll("newGroupNames").map(String),
+      };
+
       const result = contact
-        ? await updateContact(contact.id, submitted)
-        : await createContact(submitted);
+        ? await updateContact(contact.id, submitted, submittedGroups)
+        : await createContact(submitted, submittedGroups);
       if (!result.ok) {
         return { values: submitted, errors: result.errors };
       }
@@ -167,6 +200,7 @@ function ContactForm({ contact, onSaved }: { contact?: EditableContact; onSaved:
         defaultValue={values.about}
         error={errors.about}
       />
+      <ContactGroupsField groups={groups} checkedGroupIds={groupIds} error={errors.groups} />
       <Field
         name="howWeMet"
         label="Откуда знакомы"

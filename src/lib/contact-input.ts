@@ -61,11 +61,7 @@ export const contactInputSchema = z.object({
 });
 
 export const noteInputSchema = z.object({
-  body: z
-    .string()
-    .trim()
-    .min(1, "Напишите текст заметки")
-    .max(5000, "Не длиннее 5000 символов"),
+  body: z.string().trim().min(1, "Напишите текст заметки").max(5000, "Не длиннее 5000 символов"),
 });
 
 export const noteIdSchema = z.number().int().positive();
@@ -92,7 +88,8 @@ export const reminderInputSchema = z
 /** Raw contact form values, exactly as typed by the user. */
 export type ContactFormValues = Record<keyof z.input<typeof contactInputSchema>, string>;
 
-export type ContactFormErrors = Partial<Record<keyof ContactFormValues, string>>;
+/** An error per text field, and `groups` for the groups of the contact. */
+export type ContactFormErrors = Partial<Record<keyof ContactFormValues | "groups", string>>;
 
 export const contactFormFields = Object.keys(
   contactInputSchema.shape,

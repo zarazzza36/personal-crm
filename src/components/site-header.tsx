@@ -14,9 +14,7 @@ export function SiteHeader() {
         Волки с Лизюкова
       </Link>
       {/* May wrap onto two lines on the narrowest phones rather than run off the screen. */}
-      <span className="text-right text-11 tracking-label text-dim lg:text-xs">
-        ДЛЯ ЛОГИСТОВ
-      </span>
+      <span className="text-right text-11 tracking-label text-dim lg:text-xs">ДЛЯ ЛОГИСТОВ</span>
     </header>
   );
 }

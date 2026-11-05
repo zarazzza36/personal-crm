@@ -126,7 +126,12 @@ function Notification({ reminder, onClose }: { reminder: Reminder; onClose: () =
       >
         Открыть карточку
       </Link>
-      <Button variant="ghost" size="icon-sm" className="absolute top-2.5 right-2.5" onClick={onClose}>
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        className="absolute top-2.5 right-2.5"
+        onClick={onClose}
+      >
         <XIcon />
         <span className="sr-only">Закрыть</span>
       </Button>

@@ -1,5 +1,15 @@
 import { sql } from "drizzle-orm";
-import { index, integer, numeric, pgEnum, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import {
+  index,
+  integer,
+  numeric,
+  pgEnum,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
 
 import { bodyTypes } from "../lib/body-types";
 import { contactFrequencies } from "../lib/contact-frequency";
@@ -42,6 +52,42 @@ export const notes = pgTable(
   (table) => [
     index("notes_contact_id_idx").on(table.contactId),
     // Every open tab asks for the notes with a reminder every 15 seconds.
-    index("notes_remind_at_idx").on(table.remindAt).where(sql`${table.remindAt} is not null`),
+    index("notes_remind_at_idx")
+      .on(table.remindAt)
+      .where(sql`${table.remindAt} is not null`),
+  ],
+);
+
+// A circle of people the user makes up: "Семья", "Теннис".
+export const groups = pgTable(
+  "groups",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    name: text("name").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    // Two groups never differ only by case. The expression uses the Russian collation, so
+    // "Теннис" and "теннис" match on any server, whatever locale its database was made with.
+    uniqueIndex("groups_name_key").on(sql`lower(${table.name} collate "ru-x-icu")`),
+  ],
+);
+
+// Who is in which group; a contact is in any number of groups. Deleting a contact or a group
+// deletes its rows here, and nothing else.
+export const contactGroups = pgTable(
+  "contact_groups",
+  {
+    contactId: integer("contact_id")
+      .notNull()
+      .references(() => contacts.id, { onDelete: "cascade" }),
+    groupId: integer("group_id")
+      .notNull()
+      .references(() => groups.id, { onDelete: "cascade" }),
+  },
+  (table) => [
+    primaryKey({ columns: [table.contactId, table.groupId] }),
+    // The key serves the contact's groups; this one serves the group's contacts.
+    index("contact_groups_group_id_idx").on(table.groupId),
   ],
 );

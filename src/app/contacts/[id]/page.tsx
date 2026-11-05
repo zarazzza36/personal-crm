@@ -1,14 +1,16 @@
 import { Suspense } from "react";
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeftIcon, BellIcon } from "lucide-react";
+import { BellIcon } from "lucide-react";
 
+import { AllContactsLink } from "@/components/all-contacts-link";
 import { ContactAvatar } from "@/components/contact-avatar";
+import { ContactGroupsEditor } from "@/components/contact-groups-editor";
 import { EditContactButton } from "@/components/contact-dialog";
 import { DeleteContactButton } from "@/components/delete-contact-button";
 import { NoteForm } from "@/components/note-form";
 import { ReminderButton } from "@/components/reminder-button";
 import { TalkedButton } from "@/components/talked-button";
+import { listContactGroups, listGroups } from "@/db/groups";
 import { getContact, listNotes } from "@/db/queries";
 import { bodyTypeLabels } from "@/lib/body-types";
 import { contactFrequencyLabels } from "@/lib/contact-frequency";
@@ -27,13 +29,7 @@ type Params = PageProps<"/contacts/[id]">["params"];
 export default function ContactPage({ params }: PageProps<"/contacts/[id]">) {
   return (
     <main className="mx-auto w-full max-w-2xl px-4 pt-7 pb-16">
-      <Link
-        href="/"
-        className="-ml-1 inline-flex items-center gap-1.5 rounded-md px-1 text-13 text-muted-foreground outline-none hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
-      >
-        <ArrowLeftIcon aria-hidden className="size-4" />
-        Все контакты
-      </Link>
+      <AllContactsLink />
       <Suspense fallback={<ContactFallback />}>
         <ContactCard params={params} />
       </Suspense>
@@ -48,7 +44,12 @@ async function ContactCard({ params }: { params: Params }) {
     notFound();
   }
 
-  const [contact, notes] = await Promise.all([getContact(contactId), listNotes(contactId)]);
+  const [contact, notes, contactGroups, groups] = await Promise.all([
+    getContact(contactId),
+    listNotes(contactId),
+    listContactGroups(contactId),
+    listGroups(),
+  ]);
   if (!contact) {
     notFound();
   }
@@ -65,7 +66,11 @@ async function ContactCard({ params }: { params: Params }) {
         </div>
         {/* On a narrow screen the buttons move to their own row under the name. */}
         <div className="flex w-full gap-2 sm:w-auto">
-          <EditContactButton contact={contact} />
+          <EditContactButton
+            contact={contact}
+            groups={groups}
+            groupIds={contactGroups.map((group) => group.id)}
+          />
           <DeleteContactButton contactId={contact.id} />
         </div>
       </header>
@@ -73,6 +78,13 @@ async function ContactCard({ params }: { params: Params }) {
       {/* A light card on the dark page, like the contact card on the landing */}
       <div className="mt-8 grid gap-5 rounded-18 bg-paper p-5 text-ink shadow-card sm:gap-6 sm:p-7">
         <Details>
+          <Detail label="Группы">
+            <ContactGroupsEditor
+              contactId={contact.id}
+              groups={groups}
+              memberGroupIds={contactGroups.map((group) => group.id)}
+            />
+          </Detail>
           <Detail label="Откуда знакомы">{contact.howWeMet}</Detail>
           <Detail label="Телефон">
             {contact.phone && (
@@ -93,16 +105,14 @@ async function ContactCard({ params }: { params: Params }) {
               <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                 <span>
                   {contactFrequencyLabels[contact.contactFrequency]}
-                  {contact.isDue ? (
-                    " · пора связаться"
-                  ) : (
-                    contact.dueDay && (
-                      <>
-                        {" · связаться до "}
-                        <time dateTime={contact.dueDay}>{formatDay(contact.dueDay)}</time>
-                      </>
-                    )
-                  )}
+                  {contact.isDue
+                    ? " · пора связаться"
+                    : contact.dueDay && (
+                        <>
+                          {" · связаться до "}
+                          <time dateTime={contact.dueDay}>{formatDay(contact.dueDay)}</time>
+                        </>
+                      )}
                 </span>
                 <TalkedButton contactId={contact.id} />
               </div>

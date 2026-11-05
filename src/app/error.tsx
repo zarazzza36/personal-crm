@@ -17,7 +17,9 @@ export default function ErrorPage({
 
   return (
     <main className="mx-auto grid w-full max-w-md gap-3 px-4 py-24 text-center">
-      <h1 className="font-heading text-2xl font-semibold tracking-tight">Не получилось загрузить данные</h1>
+      <h1 className="font-heading text-2xl font-semibold tracking-tight">
+        Не получилось загрузить данные
+      </h1>
       <p className="text-muted-foreground">
         Скорее всего, не запущена база данных. Запустите Docker и попробуйте ещё раз.
       </p>

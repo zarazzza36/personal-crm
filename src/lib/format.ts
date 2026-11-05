@@ -21,6 +21,11 @@ const dayWords: Partial<Record<Intl.LDMLPluralRule, string>> = {
   few: "дня",
   many: "дней",
 };
+const contactWords: Partial<Record<Intl.LDMLPluralRule, string>> = {
+  one: "контакт",
+  few: "контакта",
+  many: "контактов",
+};
 // "22 октября 2026 г. в 18:40", in Moscow time on the server and in any browser.
 const dateTimeFormat = new Intl.DateTimeFormat("ru-RU", {
   day: "numeric",
@@ -63,6 +68,11 @@ export function formatDay(day: string) {
 /** "21 день", "22 дня", "25 дней". */
 export function formatDays(count: number) {
   return `${formatNumber(count)} ${dayWords[pluralRules.select(count)] ?? "дня"}`;
+}
+
+/** "1 контакт", "3 контакта", "5 контактов". */
+export function formatContactCount(count: number) {
+  return `${formatNumber(count)} ${contactWords[pluralRules.select(count)] ?? "контактов"}`;
 }
 
 export function formatTons(value: number) {

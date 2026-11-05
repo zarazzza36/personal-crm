@@ -29,6 +29,13 @@
       "when": 1793041899454,
       "tag": "0003_add_contact_frequency",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793856360916,
+      "tag": "0004_add_groups",
+      "breakpoints": true
     }
   ]
 }

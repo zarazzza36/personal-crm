@@ -3,12 +3,13 @@
 // so no test contact points to a real person.
 
 import { config } from "dotenv";
-import { drizzle } from "drizzle-orm/postgres-js";
+import { sql } from "drizzle-orm";
+import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 
 import type { BodyType } from "../lib/body-types";
 import { contactFrequencies } from "../lib/contact-frequency";
-import { contacts, notes } from "./schema";
+import { contactGroups, contacts, groups, notes } from "./schema";
 import { generateAbout, type Gender } from "./seed-about";
 
 config({ quiet: true });
@@ -213,6 +214,41 @@ function generateFrequency(createdAt: Date) {
   };
 }
 
+const groupNames = ["Семья", "Друзья", "Знакомые", "Теннис", "Аналитики"];
+
+// About a third of the contacts are in a group: most in one, some in two.
+const GROUP_SHARE = 1 / 3;
+const TWO_GROUPS_SHARE = 0.3;
+
+// Groups draw from their own generator too: the people, notes and frequencies stay what they were.
+const groupRandom = createRandom(20261105);
+
+/** Which of the groups each contact is in: pairs of a contact id and a group id. */
+function generateMemberships(contactIds: number[], groupIds: number[]) {
+  return contactIds.flatMap((contactId) => {
+    if (groupRandom() >= GROUP_SHARE) return [];
+
+    const first = pick(groupIds, groupRandom);
+    if (groupRandom() >= TWO_GROUPS_SHARE) return [{ contactId, groupId: first }];
+
+    const others = groupIds.filter((groupId) => groupId !== first);
+    return [
+      { contactId, groupId: first },
+      { contactId, groupId: pick(others, groupRandom) },
+    ];
+  });
+}
+
+/** The id of the group with this name: created, or found when it is already there (any case). */
+async function ensureGroup(tx: Pick<PostgresJsDatabase, "insert" | "select">, name: string) {
+  await tx.insert(groups).values({ name }).onConflictDoNothing();
+  const [group] = await tx
+    .select({ id: groups.id })
+    .from(groups)
+    .where(sql`lower(${groups.name} collate "ru-x-icu") = lower(${name}::text collate "ru-x-icu")`);
+  return group.id;
+}
+
 function feminineSurname(surname: string) {
   if (/(ов|ев|ёв|ин|ын)$/.test(surname)) return `${surname}а`;
   if (/(ский|цкий)$/.test(surname)) return `${surname.slice(0, -2)}ая`;
@@ -303,7 +339,20 @@ async function main() {
       );
       await tx.insert(notes).values(noteRows);
 
-      console.log(`Added ${inserted.length} contacts and ${noteRows.length} notes.`);
+      const groupIds: number[] = [];
+      for (const name of groupNames) {
+        groupIds.push(await ensureGroup(tx, name));
+      }
+      const memberships = generateMemberships(
+        inserted.map((contact) => contact.id),
+        groupIds,
+      );
+      await tx.insert(contactGroups).values(memberships);
+
+      console.log(
+        `Added ${inserted.length} contacts, ${noteRows.length} notes and ${groupIds.length} groups ` +
+          `with ${memberships.length} memberships.`,
+      );
     });
   } finally {
     await client.end();

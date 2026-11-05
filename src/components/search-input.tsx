@@ -5,11 +5,15 @@ import { useRouter } from "next/navigation";
 import { LoaderCircleIcon, SearchIcon } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
+import { contactsUrl } from "@/lib/contact-list";
 
 const DEBOUNCE_MS = 250;
 
-/** Search box that keeps the query in the URL (`/?q=...`), so the server filters the list. */
-export function SearchInput({ query }: { query: string }) {
+/**
+ * Search box that keeps the query in the URL (`/?q=...`), so the server filters the list.
+ * The chosen group stays in the address: searching never drops it.
+ */
+export function SearchInput({ query, groupId }: { query: string; groupId: number | null }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -25,11 +29,11 @@ export function SearchInput({ query }: { query: string }) {
         if (next === requestedRef.current) return;
         requestedRef.current = next;
         startTransition(() => {
-          router.replace(next ? `/?q=${encodeURIComponent(next)}` : "/", { scroll: false });
+          router.replace(contactsUrl({ query: next, groupId }), { scroll: false });
         });
       }, DEBOUNCE_MS);
     },
-    [router],
+    [router, groupId],
   );
 
   useEffect(() => {

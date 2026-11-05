@@ -36,10 +36,12 @@ type ContactListProps = {
   firstPage: ContactsPage;
   /** The just-added contact: it goes first and is highlighted. */
   addedContact: ContactListItem | null;
+  /** The group the list is filtered by: the parts that follow are from the same group. */
+  groupId: number | null;
 };
 
 /** Contact list that loads its next part when scrolled to the end. */
-export function ContactList({ firstPage, addedContact }: ContactListProps) {
+export function ContactList({ firstPage, addedContact, groupId }: ContactListProps) {
   const [loaded, setLoaded] = useState<Loaded>({
     firstPage,
     items: [],
@@ -78,7 +80,7 @@ export function ContactList({ firstPage, addedContact }: ContactListProps) {
     if (!loaded.nextCursor || missing === 0 || hasFailed) return;
 
     let ignore = false;
-    loadContactsPage(loaded.nextCursor, missing).then(
+    loadContactsPage(loaded.nextCursor, missing, groupId).then(
       (page) => {
         if (ignore) return;
         setLoaded({
@@ -95,7 +97,7 @@ export function ContactList({ firstPage, addedContact }: ContactListProps) {
     return () => {
       ignore = true;
     };
-  }, [loaded, missing, hasFailed]);
+  }, [loaded, missing, hasFailed, groupId]);
 
   useEffect(() => {
     const end = endRef.current;
@@ -193,6 +195,9 @@ const ContactRow = memo(function ContactRow({
           </div>
           {contact.about && (
             <div className="mt-0.5 truncate text-13 text-muted-foreground">{contact.about}</div>
+          )}
+          {contact.groupNames.length > 0 && (
+            <div className="mt-1 truncate text-xs text-dim">{contact.groupNames.join(" · ")}</div>
           )}
           {truck && <div className="mt-1 truncate text-xs text-accent">{truck}</div>}
         </div>

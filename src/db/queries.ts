@@ -32,6 +32,17 @@ import { NOTE_EXCERPT_LENGTH, type Reminder } from "@/lib/reminders";
 import { db } from "./index";
 import { contacts, notes } from "./schema";
 
+// The names of the contact's groups in alphabetical order, empty for a contact without groups.
+// A subquery, not a join: a contact in many groups stays one row of the list. The table names are
+// written out: in a select from one table Drizzle drops them from the columns, and then "id"
+// in here would be the group's.
+const groupNames = sql<string[]>`coalesce((
+  select array_agg(g.name order by g.name collate "ru-x-icu", g.id)
+  from contact_groups cg
+  inner join groups g on g.id = cg.group_id
+  where cg.contact_id = ${contacts}.id
+), '{}')`;
+
 const contactListColumns = {
   id: contacts.id,
   name: contacts.name,
@@ -41,6 +52,7 @@ const contactListColumns = {
   capacityTons: contacts.capacityTons,
   volumeCubicMeters: contacts.volumeCubicMeters,
   bodyType: contacts.bodyType,
+  groupNames,
 };
 
 const nameInRussianOrder = sql`${contacts.name} collate "ru-x-icu"`;
@@ -93,6 +105,19 @@ const isDue = sql<boolean>`coalesce(${dueDay} <= ${today}, false)`;
 // Days since the last note; null without notes.
 const daysSinceLastNote = sql<number | null>`${today} - ${moscowDay(lastNote.at)}`;
 
+/**
+ * Only the contacts that are in the group; no condition when no group is chosen. The table
+ * names are written out for the same reason as in `groupNames`.
+ */
+function inGroup(groupId: number | null | undefined) {
+  return groupId == null
+    ? undefined
+    : sql`exists (
+        select 1 from contact_groups
+        where contact_groups.contact_id = ${contacts}.id and contact_groups.group_id = ${groupId}
+      )`;
+}
+
 function escapeLikePattern(value: string) {
   return value.replace(/[\\%_]/g, "\\$&");
 }
@@ -116,8 +141,12 @@ function withinRange(column: PgColumn, range: Range | null): SQL[] {
 /**
  * All contacts that match every part of `query`, in Russian alphabetical order:
  * words in the name or the body type, and the tons and cubic meters asked for ("от 5 тонн").
+ * With `groupId`, only the contacts of that group.
  */
-export async function searchContacts(query: string): Promise<ContactListItem[]> {
+export async function searchContacts(
+  query: string,
+  groupId?: number | null,
+): Promise<ContactListItem[]> {
   const { words, tons, cubicMeters } = parseContactSearch(query);
 
   return db
@@ -128,23 +157,31 @@ export async function searchContacts(query: string): Promise<ContactListItem[]> 
         ...words.map(matchesWord),
         ...withinRange(contacts.capacityTons, tons),
         ...withinRange(contacts.volumeCubicMeters, cubicMeters),
+        inGroup(groupId),
       ),
     )
     .orderBy(...alphabeticalOrder);
 }
 
-/** Up to `limit` contacts in Russian alphabetical order, starting right after `cursor`. */
+/**
+ * Up to `limit` contacts in Russian alphabetical order, starting right after `cursor`;
+ * with `groupId`, only the contacts of that group.
+ */
 export async function listContactsPage(
   cursor: ContactCursor | null,
   limit: number,
+  groupId?: number | null,
 ): Promise<ContactsPage> {
   const rows = await db
     .select(contactListColumns)
     .from(contacts)
     .where(
-      cursor
-        ? sql`(${nameInRussianOrder}, ${contacts.id}) > (${cursor.name}, ${cursor.id})`
-        : undefined,
+      and(
+        cursor
+          ? sql`(${nameInRussianOrder}, ${contacts.id}) > (${cursor.name}, ${cursor.id})`
+          : undefined,
+        inGroup(groupId),
+      ),
     )
     .orderBy(...alphabeticalOrder)
     // One extra row tells whether the list goes on after this page.
@@ -158,8 +195,9 @@ export async function listContactsPage(
   };
 }
 
-export async function countContacts() {
-  return db.$count(contacts);
+/** How many contacts there are; with `groupId`, how many of them are in that group. */
+export async function countContacts(groupId?: number | null) {
+  return db.$count(contacts, inGroup(groupId));
 }
 
 /** The contact as a row of the list. */

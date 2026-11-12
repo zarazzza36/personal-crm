@@ -1,5 +1,6 @@
 # Every push to main: build the app image, push it to GHCR, deploy it to the server.
-# The deploy itself is deploy/app/deploy.sh; this workflow copies it to the server and runs it.
+# The deploy itself is deploy/app/deploy.sh; this workflow copies the whole deploy/ folder
+# to the server and runs it.
 name: Deploy
 
 on:
@@ -65,9 +66,18 @@ jobs:
             StrictHostKeyChecking yes
             ServerAliveInterval 30
           EOF
-      - name: Copy the deploy scripts to the server
-        run: scp deploy/app/* server:personal-crm/
+      # The server's copy of deploy/ is replaced as a whole: scripts removed from the repo go too.
+      - name: Copy the deploy folder to the server
+        run: |
+          tar -cf - deploy | ssh server '
+            set -e
+            cd personal-crm
+            rm -rf deploy.new
+            mkdir deploy.new
+            tar -C deploy.new --strip-components=1 -xf -
+            rm -rf deploy
+            mv deploy.new deploy'
       - name: Deploy
         env:
           REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: printf '%s' "$REGISTRY_TOKEN" | ssh server "bash personal-crm/deploy.sh '$IMAGE' '${{ github.actor }}'"
+        run: printf '%s' "$REGISTRY_TOKEN" | ssh server "bash personal-crm/deploy/app/deploy.sh '$IMAGE' '${{ github.actor }}'"

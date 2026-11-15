@@ -1,3 +1,8 @@
+import { beforeEach as prepareUser } from "vitest";
+import { makeTestUser, TEST_USER_ID } from "@/test/test-user";
+
+prepareUser(makeTestUser);
+
 import { describe, expect, it } from "vitest";
 
 import { addAllToGroup, addToGroup, makeContact, makeContacts, makeGroup } from "@/test/factories";
@@ -15,7 +20,7 @@ describe("the groups of a contact in the list", () => {
     await addToGroup(ivan, tennis);
     await addToGroup(ivan, family);
 
-    const { items } = await listContactsPage(null, 50);
+    const { items } = await listContactsPage(TEST_USER_ID, null, 50);
 
     expect(items).toHaveLength(1);
     expect(items[0].groupNames).toEqual(["Семья", "Теннис"]);
@@ -30,7 +35,7 @@ describe("the groups of a contact in the list", () => {
       await addToGroup(id, family);
     }
 
-    const { items } = await listContactsPage(null, 50);
+    const { items } = await listContactsPage(TEST_USER_ID, null, 50);
 
     expect(items.map((item) => item.name)).toEqual(["Анна", "Иван", "Пётр"]);
   });
@@ -40,7 +45,7 @@ describe("the groups of a contact in the list", () => {
     await makeGroup("Теннис");
     await makeContact("Иван");
 
-    const { items } = await listContactsPage(null, 50);
+    const { items } = await listContactsPage(TEST_USER_ID, null, 50);
 
     expect(items[0].groupNames).toEqual([]);
   });
@@ -52,7 +57,7 @@ describe("the groups of a contact in the list", () => {
     await makeContact("Борис");
     await addToGroup(await makeContact("Вера"), family);
 
-    const { items } = await listContactsPage(null, 50);
+    const { items } = await listContactsPage(TEST_USER_ID, null, 50);
 
     expect(items.map((item) => [item.name, item.groupNames])).toEqual([
       ["Анна", ["Теннис"]],
@@ -70,7 +75,7 @@ describe("the groups of a contact in the list", () => {
     await addToGroup(ivan, tennis);
     await addToGroup(ivan, family);
 
-    const found = await searchContacts("Иван");
+    const found = await searchContacts(TEST_USER_ID, "Иван");
 
     expect(found.map((item) => [item.name, item.groupNames])).toEqual([
       ["Иван Петров", ["Семья", "Теннис"]],
@@ -84,8 +89,8 @@ describe("the groups of a contact in the list", () => {
       await addToGroup(await makeContact(name), tennis);
     }
 
-    const first = await listContactsPage(null, 2);
-    const second = await listContactsPage(first.nextCursor, 2);
+    const first = await listContactsPage(TEST_USER_ID, null, 2);
+    const second = await listContactsPage(TEST_USER_ID, first.nextCursor, 2);
 
     expect(second.items.map((item) => [item.name, item.groupNames])).toEqual([
       ["Вера", ["Теннис"]],
@@ -99,7 +104,7 @@ describe("the groups of a contact in the list", () => {
     const ivan = await makeContact("Иван");
     await addToGroup(ivan, family);
 
-    const added = await getContactListItem(ivan);
+    const added = await getContactListItem(TEST_USER_ID, ivan);
 
     expect(added?.groupNames).toEqual(["Семья"]);
   });
@@ -113,14 +118,14 @@ describe("the list filtered by a group", () => {
     await makeContacts(8, "Прохожий");
     await addAllToGroup(players, tennis);
 
-    const { items, nextCursor } = await listContactsPage(null, 50, tennis);
+    const { items, nextCursor } = await listContactsPage(TEST_USER_ID, null, 50, tennis);
 
     expect(items.map((item) => item.name)).toEqual(
       Array.from({ length: 12 }, (_, index) => `Игрок ${String(index + 1).padStart(3, "0")}`),
     );
     expect(nextCursor).toBeNull();
-    expect(await countContacts(tennis)).toBe(12);
-    expect(await countContacts()).toBe(20);
+    expect(await countContacts(TEST_USER_ID, tennis)).toBe(12);
+    expect(await countContacts(TEST_USER_ID)).toBe(20);
   });
 
   it("gives all the contacts without a group", async () => {
@@ -128,8 +133,8 @@ describe("the list filtered by a group", () => {
     await addAllToGroup(await makeContacts(2, "Игрок"), tennis);
     await makeContacts(3, "Прохожий");
 
-    expect((await listContactsPage(null, 50, null)).items).toHaveLength(5);
-    expect((await listContactsPage(null, 50)).items).toHaveLength(5);
+    expect((await listContactsPage(TEST_USER_ID, null, 50, null)).items).toHaveLength(5);
+    expect((await listContactsPage(TEST_USER_ID, null, 50)).items).toHaveLength(5);
   });
 
   it("still shows every group of the contact, not only the chosen one", async () => {
@@ -139,7 +144,7 @@ describe("the list filtered by a group", () => {
     await addToGroup(ivan, tennis);
     await addToGroup(ivan, family);
 
-    const { items } = await listContactsPage(null, 50, tennis);
+    const { items } = await listContactsPage(TEST_USER_ID, null, 50, tennis);
 
     expect(items[0].groupNames).toEqual(["Семья", "Теннис"]);
   });
@@ -150,9 +155,9 @@ describe("the list filtered by a group", () => {
     await addAllToGroup(await makeContacts(120, "Друг"), friends);
     await makeContacts(30, "Чужой");
 
-    const first = await listContactsPage(null, 50, friends);
-    const second = await listContactsPage(first.nextCursor, 50, friends);
-    const third = await listContactsPage(second.nextCursor, 50, friends);
+    const first = await listContactsPage(TEST_USER_ID, null, 50, friends);
+    const second = await listContactsPage(TEST_USER_ID, first.nextCursor, 50, friends);
+    const third = await listContactsPage(TEST_USER_ID, second.nextCursor, 50, friends);
 
     expect([first.items.length, second.items.length, third.items.length]).toEqual([50, 50, 20]);
     expect(first.nextCursor).not.toBeNull();
@@ -173,10 +178,10 @@ describe("the list filtered by a group", () => {
     await makeContact("Иван Чужой");
     for (const id of [insideA, insideB, inside]) await addToGroup(id, tennis);
 
-    const found = await searchContacts("Иван", tennis);
+    const found = await searchContacts(TEST_USER_ID, "Иван", tennis);
 
     expect(found.map((item) => item.name)).toEqual(["Иван Второй", "Иван Первый"]);
-    expect((await searchContacts("Иван")).map((item) => item.name)).toHaveLength(3);
+    expect((await searchContacts(TEST_USER_ID, "Иван")).map((item) => item.name)).toHaveLength(3);
   });
 
   it("finds nobody when nobody in the group fits the query", async () => {
@@ -184,24 +189,24 @@ describe("the list filtered by a group", () => {
     await addToGroup(await makeContact("Иван"), tennis);
     await makeContact("Пётр");
 
-    expect(await searchContacts("Пётр", tennis)).toEqual([]);
+    expect(await searchContacts(TEST_USER_ID, "Пётр", tennis)).toEqual([]);
   });
 
   it("gives an empty list for a group nobody is in", async () => {
     const analysts = await makeGroup("Аналитики");
     await makeContacts(3);
 
-    expect((await listContactsPage(null, 50, analysts)).items).toEqual([]);
-    expect(await countContacts(analysts)).toBe(0);
+    expect((await listContactsPage(TEST_USER_ID, null, 50, analysts)).items).toEqual([]);
+    expect(await countContacts(TEST_USER_ID, analysts)).toBe(0);
   });
 
   // Scenario "Группы из адреса нет": the page finds no group and shows everyone
   it("has no group to filter by once the group is deleted", async () => {
     const tennis = await makeGroup("Теннис");
     await addAllToGroup(await makeContacts(2), tennis);
-    await deleteGroup(tennis);
+    await deleteGroup(TEST_USER_ID, tennis);
 
-    expect(await getGroup(tennis)).toBeUndefined();
-    expect((await listContactsPage(null, 50)).items).toHaveLength(2);
+    expect(await getGroup(TEST_USER_ID, tennis)).toBeUndefined();
+    expect((await listContactsPage(TEST_USER_ID, null, 50)).items).toHaveLength(2);
   });
 });

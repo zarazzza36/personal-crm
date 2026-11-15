@@ -34,6 +34,11 @@ jobs:
     name: Vitest
     runs-on: ubuntu-latest
     services:
+      mailpit:
+        image: axllent/mailpit:v1.33.1
+        ports:
+          - 1025:1025
+          - 8025:8025
       # A throwaway database server that lives only while the job runs: no password is needed.
       postgres:
         image: postgres:17-alpine
@@ -50,6 +55,7 @@ jobs:
     env:
       # The tests create and use personal_crm_test next to this database.
       DATABASE_URL: postgres://postgres@localhost:5432/personal_crm
+      SMTP_URL: smtp://localhost:1025
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -64,6 +70,11 @@ jobs:
     name: Playwright
     runs-on: ubuntu-latest
     services:
+      mailpit:
+        image: axllent/mailpit:v1.33.1
+        ports:
+          - 1025:1025
+          - 8025:8025
       postgres:
         image: postgres:17-alpine
         env:
@@ -79,6 +90,7 @@ jobs:
     env:
       # The e2e server and tests create and use personal_crm_e2e_test next to this database.
       DATABASE_URL: postgres://postgres@localhost:5432/personal_crm
+      SMTP_URL: smtp://localhost:1025
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6

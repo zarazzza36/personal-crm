@@ -14,6 +14,7 @@ if (!url) {
 // No notices in the log: every run says the migrations schema already exists.
 const client = postgres(url, { max: 1, onnotice: () => {} });
 try {
+  await client`select set_config('crm.owner_email', ${process.env.OWNER_EMAIL ?? ""}, false)`;
   await migrate(drizzle(client), { migrationsFolder: "drizzle" });
   console.log("Migrations are applied.");
 } finally {

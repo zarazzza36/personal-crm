@@ -20,6 +20,11 @@ export default defineConfig({
     },
   },
   test: {
+    env: {
+      SMTP_URL: "smtp://127.0.0.1:1025",
+      BETTER_AUTH_URL: "http://localhost:3000",
+      BETTER_AUTH_SECRET: "test-only-secret-at-least-32-characters-long",
+    },
     include: ["src/**/*.test.ts"],
     globalSetup: ["./vitest.global-setup.ts"],
     setupFiles: ["./vitest.setup.ts"],

@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 
+import { getCurrentUser } from "@/auth/session";
 import { AllContactsLink } from "@/components/all-contacts-link";
 import { GroupRow } from "@/components/group-row";
 import { NewGroupForm } from "@/components/new-group-form";
@@ -23,7 +24,8 @@ export default function GroupsPage() {
 }
 
 async function Groups() {
-  const groups = await listGroups();
+  const { id: userId } = await getCurrentUser();
+  const groups = await listGroups(userId);
 
   if (groups.length === 0) {
     return <p className="mt-10 text-muted-foreground">Групп пока нет. Создайте первую.</p>;

@@ -3,15 +3,33 @@
 // check what the user sees and does.
 
 import type { Page } from "@playwright/test";
+import { randomUUID, randomInt } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 
-import { contacts, notes } from "../src/db/schema";
+import { contacts, notes, users } from "../src/db/schema";
 import type { ContactFrequency } from "../src/lib/contact-frequency";
 import { formatDay } from "../src/lib/format";
 import { toMoscowInput } from "../src/lib/moscow-time";
 
-import { expect, test } from "./fixtures";
+import { expect, signIn, test } from "./fixtures";
+
+let testEmail: string;
+let testUserId: string;
+
+test.beforeEach(async ({ page, database }) => {
+  test.setTimeout(120_000);
+  testEmail = `keep-${randomUUID()}@example.com`;
+  await page.context().setExtraHTTPHeaders({
+    "x-real-ip": `10.${randomInt(1, 255)}.${randomInt(1, 255)}.${randomInt(1, 255)}`,
+  });
+  await signIn(page, testEmail);
+  const [user] = await database
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.email, testEmail));
+  testUserId = user.id;
+});
 
 const ERROR_MESSAGE = "Не удалось сохранить, попробуйте ещё раз";
 
@@ -65,7 +83,7 @@ async function makeContact(
         : daysAgo(1000);
   const [contact] = await database
     .insert(contacts)
-    .values({ name, contactFrequency: frequency, contactFrequencySetAt: setAt })
+    .values({ userId: testUserId, name, contactFrequency: frequency, contactFrequencySetAt: setAt })
     .returning({ id: contacts.id });
   if (last && "notedDaysAgo" in last) {
     await database.insert(notes).values({
@@ -110,9 +128,13 @@ test("a frequency chosen for a new contact is in its card, the same in another b
   await expect(frequencyLine(page)).toContainText(expected);
   const cardUrl = page.url();
 
-  const otherBrowser = await browser.newContext({ baseURL });
+  const otherBrowser = await browser.newContext({
+    baseURL,
+    extraHTTPHeaders: { "x-real-ip": "10.2.2.2" },
+  });
   try {
     const other = await otherBrowser.newPage();
+    await signIn(other, testEmail);
     await other.goto(cardUrl);
     await expect(frequencyLine(other)).toContainText(expected);
   } finally {

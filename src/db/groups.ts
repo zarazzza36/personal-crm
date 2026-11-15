@@ -6,7 +6,7 @@ import { groupNameSchema, type ContactGroupsInput, type SaveGroupResult } from "
 import type { AddToGroupResult, Group, GroupListItem } from "@/lib/groups";
 
 import { db } from "./index";
-import { contactGroups, groups } from "./schema";
+import { contactGroups, contacts, groups } from "./schema";
 
 export const GROUP_EXISTS_ERROR = "Такая группа уже есть";
 
@@ -14,31 +14,39 @@ export const GROUP_EXISTS_ERROR = "Такая группа уже есть";
 const alphabeticalOrder = [sql`${groups.name} collate "ru-x-icu"`, asc(groups.id)];
 
 /** Every group with the number of its contacts, in alphabetical order. */
-export async function listGroups(): Promise<GroupListItem[]> {
+export async function listGroups(userId: string): Promise<GroupListItem[]> {
   return db
     .select({ id: groups.id, name: groups.name, contactCount: count(contactGroups.contactId) })
     .from(groups)
     .leftJoin(contactGroups, eq(contactGroups.groupId, groups.id))
+    .where(eq(groups.userId, userId))
     .groupBy(groups.id)
     .orderBy(...alphabeticalOrder);
 }
 
 /** The groups the contact is in, in alphabetical order; empty when it is in none. */
-export async function listContactGroups(contactId: number): Promise<Group[]> {
+export async function listContactGroups(userId: string, contactId: number): Promise<Group[]> {
   return db
     .select({ id: groups.id, name: groups.name })
     .from(contactGroups)
     .innerJoin(groups, eq(groups.id, contactGroups.groupId))
-    .where(eq(contactGroups.contactId, contactId))
+    .innerJoin(contacts, eq(contacts.id, contactGroups.contactId))
+    .where(
+      and(
+        eq(contactGroups.contactId, contactId),
+        eq(contacts.userId, userId),
+        eq(groups.userId, userId),
+      ),
+    )
     .orderBy(...alphabeticalOrder);
 }
 
 /** The group, or `undefined` when there is no group with this id. */
-export async function getGroup(id: number): Promise<Group | undefined> {
+export async function getGroup(userId: string, id: number): Promise<Group | undefined> {
   const [group] = await db
     .select({ id: groups.id, name: groups.name })
     .from(groups)
-    .where(eq(groups.id, id));
+    .where(and(eq(groups.id, id), eq(groups.userId, userId)));
   return group;
 }
 
@@ -47,7 +55,7 @@ export async function getGroup(id: number): Promise<Group | undefined> {
  * never have the same name, whatever the case: the database decides, so two tabs creating
  * "Теннис" at once get one group and one error.
  */
-export async function createGroup(name: string): Promise<SaveGroupResult> {
+export async function createGroup(userId: string, name: string): Promise<SaveGroupResult> {
   const parsed = groupNameSchema.safeParse(name);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0].message };
@@ -55,7 +63,7 @@ export async function createGroup(name: string): Promise<SaveGroupResult> {
 
   const [created] = await db
     .insert(groups)
-    .values({ name: parsed.data })
+    .values({ name: parsed.data, userId })
     .onConflictDoNothing()
     .returning({ id: groups.id });
   return created ? { ok: true, id: created.id } : { ok: false, error: GROUP_EXISTS_ERROR };
@@ -75,7 +83,11 @@ function isUniqueViolation(error: unknown): boolean {
  * is fine: the unique index compares a group with the other groups, not with itself.
  * Throws when there is no such group.
  */
-export async function renameGroup(id: number, name: string): Promise<SaveGroupResult> {
+export async function renameGroup(
+  userId: string,
+  id: number,
+  name: string,
+): Promise<SaveGroupResult> {
   const parsed = groupNameSchema.safeParse(name);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0].message };
@@ -85,7 +97,7 @@ export async function renameGroup(id: number, name: string): Promise<SaveGroupRe
     const [renamed] = await db
       .update(groups)
       .set({ name: parsed.data })
-      .where(eq(groups.id, id))
+      .where(and(eq(groups.id, id), eq(groups.userId, userId)))
       .returning({ id: groups.id });
     if (!renamed) {
       throw new Error(`Group ${id} not found`);
@@ -100,8 +112,8 @@ export async function renameGroup(id: number, name: string): Promise<SaveGroupRe
 }
 
 /** Deletes the group and its links to contacts (the database cascades); the contacts stay. */
-export async function deleteGroup(id: number) {
-  await db.delete(groups).where(eq(groups.id, id));
+export async function deleteGroup(userId: string, id: number) {
+  await db.delete(groups).where(and(eq(groups.id, id), eq(groups.userId, userId)));
 }
 
 /** The database or a transaction of it: the group functions that join a bigger save take either. */
@@ -111,13 +123,19 @@ type Executor = Pick<typeof db, "select" | "insert" | "delete" | "execute">;
  * The id of the group with this name, created when there is none. The name is already checked
  * (`groupNameSchema`). Two saves at once with the same new name get the same group.
  */
-export async function findOrCreateGroup(executor: Executor, name: string): Promise<number> {
-  await executor.insert(groups).values({ name }).onConflictDoNothing();
+export async function findOrCreateGroup(
+  userId: string,
+  executor: Executor,
+  name: string,
+): Promise<number> {
+  await executor.insert(groups).values({ name, userId }).onConflictDoNothing();
 
   const [group] = await executor
     .select({ id: groups.id })
     .from(groups)
-    .where(sql`lower(${groups.name} collate "ru-x-icu") = lower(${name}::text collate "ru-x-icu")`);
+    .where(
+      sql`${groups.userId} = ${userId} and lower(${groups.name} collate "ru-x-icu") = lower(${name}::text collate "ru-x-icu")`,
+    );
   if (!group) {
     // Deleted by someone between the two queries.
     throw new Error(`Group "${name}" disappeared while it was being saved`);
@@ -132,22 +150,35 @@ export async function findOrCreateGroup(executor: Executor, name: string): Promi
  * Called in the same transaction as the contact is saved in, so nothing is half-saved.
  */
 export async function setContactGroups(
+  userId: string,
   executor: Executor,
   contactId: number,
   { groupIds, newGroupNames }: ContactGroupsInput,
 ) {
+  const [contact] = await executor
+    .select({ id: contacts.id })
+    .from(contacts)
+    .where(and(eq(contacts.id, contactId), eq(contacts.userId, userId)));
+  if (!contact) return;
   const ids = new Set(groupIds);
   for (const name of newGroupNames) {
-    ids.add(await findOrCreateGroup(executor, name));
+    ids.add(await findOrCreateGroup(userId, executor, name));
   }
 
-  await executor.delete(contactGroups).where(eq(contactGroups.contactId, contactId));
+  await executor
+    .delete(contactGroups)
+    .where(
+      and(
+        eq(contactGroups.contactId, contactId),
+        sql`exists (select 1 from ${contacts} where ${contacts.id} = ${contactId} and ${contacts.userId} = ${userId})`,
+      ),
+    );
   if (ids.size === 0) return;
 
   await executor.execute(sql`
     insert into ${contactGroups} (contact_id, group_id)
     select ${contactId}::integer, ${groups.id} from ${groups}
-    where ${groups.id} in (${sql.join(
+    where ${groups.userId} = ${userId} and exists (select 1 from ${contacts} where ${contacts.id} = ${contactId} and ${contacts.userId} = ${userId}) and ${groups.id} in (${sql.join(
       Array.from(ids, (id) => sql`${id}`),
       sql`, `,
     )})
@@ -161,16 +192,28 @@ export async function setContactGroups(
  * contact into a group it is in, or taking it out of one it is not in, does nothing.
  */
 export async function setContactGroupMembership(
+  userId: string,
   contactId: number,
   groupId: number,
   member: boolean,
 ) {
   if (member) {
-    await db.insert(contactGroups).values({ contactId, groupId }).onConflictDoNothing();
+    await db.execute(sql`insert into ${contactGroups} (contact_id, group_id)
+      select ${contacts.id}, ${groups.id} from ${contacts}, ${groups}
+      where ${contacts.id} = ${contactId} and ${contacts.userId} = ${userId}
+        and ${groups.id} = ${groupId} and ${groups.userId} = ${userId}
+      on conflict do nothing`);
   } else {
     await db
       .delete(contactGroups)
-      .where(and(eq(contactGroups.contactId, contactId), eq(contactGroups.groupId, groupId)));
+      .where(
+        and(
+          eq(contactGroups.contactId, contactId),
+          eq(contactGroups.groupId, groupId),
+          sql`exists (select 1 from ${contacts} where ${contacts.id} = ${contactId} and ${contacts.userId} = ${userId})`,
+          sql`exists (select 1 from ${groups} where ${groups.id} = ${groupId} and ${groups.userId} = ${userId})`,
+        ),
+      );
   }
 }
 
@@ -180,6 +223,7 @@ export async function setContactGroupMembership(
  * one, with its own spelling, when the name was taken.
  */
 export async function addContactToNewGroup(
+  userId: string,
   contactId: number,
   name: string,
 ): Promise<AddToGroupResult> {
@@ -189,13 +233,18 @@ export async function addContactToNewGroup(
   }
 
   const group = await db.transaction(async (tx) => {
-    const id = await findOrCreateGroup(tx, parsed.data);
+    const [contact] = await tx
+      .select({ id: contacts.id })
+      .from(contacts)
+      .where(and(eq(contacts.id, contactId), eq(contacts.userId, userId)));
+    if (!contact) throw new Error(`Contact ${contactId} not found`);
+    const id = await findOrCreateGroup(userId, tx, parsed.data);
     await tx.insert(contactGroups).values({ contactId, groupId: id }).onConflictDoNothing();
 
     const [row] = await tx
       .select({ id: groups.id, name: groups.name })
       .from(groups)
-      .where(eq(groups.id, id));
+      .where(and(eq(groups.id, id), eq(groups.userId, userId)));
     return row;
   });
   return { ok: true, group };

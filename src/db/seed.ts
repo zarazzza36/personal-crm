@@ -3,13 +3,14 @@
 // so no test contact points to a real person.
 
 import { config } from "dotenv";
+import { randomUUID } from "node:crypto";
 import { sql } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 
 import type { BodyType } from "../lib/body-types";
 import { contactFrequencies } from "../lib/contact-frequency";
-import { contactGroups, contacts, groups, notes } from "./schema";
+import { contactGroups, contacts, groups, notes, users } from "./schema";
 import { generateAbout, type Gender } from "./seed-about";
 
 config({ quiet: true });
@@ -564,12 +565,18 @@ function generateMemberships(contactIds: number[], groupIds: number[]) {
 }
 
 /** The id of the group with this name: created, or found when it is already there (any case). */
-async function ensureGroup(tx: Pick<PostgresJsDatabase, "insert" | "select">, name: string) {
-  await tx.insert(groups).values({ name }).onConflictDoNothing();
+async function ensureGroup(
+  tx: Pick<PostgresJsDatabase, "insert" | "select">,
+  name: string,
+  userId: string,
+) {
+  await tx.insert(groups).values({ name, userId }).onConflictDoNothing();
   const [group] = await tx
     .select({ id: groups.id })
     .from(groups)
-    .where(sql`lower(${groups.name} collate "ru-x-icu") = lower(${name}::text collate "ru-x-icu")`);
+    .where(
+      sql`${groups.userId} = ${userId} and lower(${groups.name} collate "ru-x-icu") = lower(${name}::text collate "ru-x-icu")`,
+    );
   return group.id;
 }
 
@@ -636,6 +643,8 @@ function generateNotes(contactId: number, contactCreatedAt: Date, now: number) {
 }
 
 async function main() {
+  const ownerEmail = process.env.OWNER_EMAIL?.trim().toLowerCase();
+  if (!ownerEmail) throw new Error("OWNER_EMAIL is required to seed contacts.");
   const url = process.env.DATABASE_URL;
   if (!url) {
     throw new Error("DATABASE_URL is not set. Copy .env.example to .env and fill it in.");
@@ -653,9 +662,17 @@ async function main() {
 
     const now = Date.now();
     await db.transaction(async (tx) => {
+      await tx
+        .insert(users)
+        .values({ id: randomUUID(), name: "", email: ownerEmail, emailVerified: true })
+        .onConflictDoNothing();
+      const [owner] = await tx
+        .select({ id: users.id })
+        .from(users)
+        .where(sql`${users.email} = ${ownerEmail}`);
       const inserted = await tx
         .insert(contacts)
-        .values(generateContacts(now))
+        .values(generateContacts(now).map((contact) => ({ ...contact, userId: owner.id })))
         .returning({ id: contacts.id, createdAt: contacts.createdAt });
 
       const noteRows = inserted.flatMap((contact) =>
@@ -665,7 +682,7 @@ async function main() {
 
       const groupIds: number[] = [];
       for (const name of groupNames) {
-        groupIds.push(await ensureGroup(tx, name));
+        groupIds.push(await ensureGroup(tx, name, owner.id));
       }
       const memberships = generateMemberships(
         inserted.map((contact) => contact.id),

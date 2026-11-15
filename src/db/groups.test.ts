@@ -1,3 +1,8 @@
+import { beforeEach as prepareUser } from "vitest";
+import { makeTestUser, TEST_USER_ID } from "@/test/test-user";
+
+prepareUser(makeTestUser);
+
 import { eq, sql } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
@@ -23,39 +28,48 @@ describe("createGroup", () => {
   it("creates a group without contacts", async () => {
     const id = await makeGroup("Теннис");
 
-    expect(await listGroups()).toEqual([{ id, name: "Теннис", contactCount: 0 }]);
+    expect(await listGroups(TEST_USER_ID)).toEqual([{ id, name: "Теннис", contactCount: 0 }]);
   });
 
   it("saves the name as typed, without the spaces around it", async () => {
     const id = await makeGroup("  Большой Теннис  ");
 
-    expect(await getGroup(id)).toEqual({ id, name: "Большой Теннис" });
+    expect(await getGroup(TEST_USER_ID, id)).toEqual({ id, name: "Большой Теннис" });
   });
 
   // Scenario "Такая группа уже есть"
   it("refuses a name that is taken, whatever the case", async () => {
     await makeGroup("Теннис");
 
-    expect(await createGroup("теннис")).toEqual({ ok: false, error: "Такая группа уже есть" });
-    expect(await createGroup("ТЕННИС")).toEqual({ ok: false, error: "Такая группа уже есть" });
-    expect((await listGroups()).map((group) => group.name)).toEqual(["Теннис"]);
+    expect(await createGroup(TEST_USER_ID, "теннис")).toEqual({
+      ok: false,
+      error: "Такая группа уже есть",
+    });
+    expect(await createGroup(TEST_USER_ID, "ТЕННИС")).toEqual({
+      ok: false,
+      error: "Такая группа уже есть",
+    });
+    expect((await listGroups(TEST_USER_ID)).map((group) => group.name)).toEqual(["Теннис"]);
   });
 
   // Scenarios "Пустое название" and "Слишком длинное название"
   it("refuses an empty name and a name over 50 characters", async () => {
-    expect(await createGroup("   ")).toEqual({ ok: false, error: "Укажите название группы" });
-    expect(await createGroup("а".repeat(51))).toEqual({
+    expect(await createGroup(TEST_USER_ID, "   ")).toEqual({
+      ok: false,
+      error: "Укажите название группы",
+    });
+    expect(await createGroup(TEST_USER_ID, "а".repeat(51))).toEqual({
       ok: false,
       error: "Не длиннее 50 символов",
     });
-    expect(await listGroups()).toEqual([]);
+    expect(await listGroups(TEST_USER_ID)).toEqual([]);
   });
 });
 
 describe("listGroups", () => {
   // Scenario "Групп ещё нет"
   it("is empty when there are no groups", async () => {
-    expect(await listGroups()).toEqual([]);
+    expect(await listGroups(TEST_USER_ID)).toEqual([]);
   });
 
   // Scenario "Алфавит"
@@ -64,7 +78,7 @@ describe("listGroups", () => {
     await makeGroup("Семья");
     await makeGroup("Аналитики");
 
-    expect((await listGroups()).map((group) => group.name)).toEqual([
+    expect((await listGroups(TEST_USER_ID)).map((group) => group.name)).toEqual([
       "Аналитики",
       "Семья",
       "теннис",
@@ -81,7 +95,7 @@ describe("listGroups", () => {
     await addToGroup(petr, tennis);
     await addToGroup(ivan, family);
 
-    expect(await listGroups()).toEqual([
+    expect(await listGroups(TEST_USER_ID)).toEqual([
       { id: expect.any(Number), name: "Аналитики", contactCount: 0 },
       { id: family, name: "Семья", contactCount: 1 },
       { id: tennis, name: "Теннис", contactCount: 2 },
@@ -93,11 +107,11 @@ describe("getGroup", () => {
   it("gives the group", async () => {
     const id = await makeGroup("Теннис");
 
-    expect(await getGroup(id)).toEqual({ id, name: "Теннис" });
+    expect(await getGroup(TEST_USER_ID, id)).toEqual({ id, name: "Теннис" });
   });
 
   it("gives nothing when there is no such group", async () => {
-    expect(await getGroup(12345)).toBeUndefined();
+    expect(await getGroup(TEST_USER_ID, 12345)).toBeUndefined();
   });
 });
 
@@ -108,17 +122,22 @@ describe("renameGroup", () => {
     await addToGroup(await makeContact("Иван"), tennis);
     await addToGroup(await makeContact("Пётр"), tennis);
 
-    expect(await renameGroup(tennis, "Большой теннис")).toEqual({ ok: true, id: tennis });
+    expect(await renameGroup(TEST_USER_ID, tennis, "Большой теннис")).toEqual({
+      ok: true,
+      id: tennis,
+    });
 
-    expect(await listGroups()).toEqual([{ id: tennis, name: "Большой теннис", contactCount: 2 }]);
+    expect(await listGroups(TEST_USER_ID)).toEqual([
+      { id: tennis, name: "Большой теннис", contactCount: 2 },
+    ]);
   });
 
   it("saves the new name without the spaces around it", async () => {
     const id = await makeGroup("Теннис");
 
-    await renameGroup(id, "  Большой теннис ");
+    await renameGroup(TEST_USER_ID, id, "  Большой теннис ");
 
-    expect(await getGroup(id)).toEqual({ id, name: "Большой теннис" });
+    expect(await getGroup(TEST_USER_ID, id)).toEqual({ id, name: "Большой теннис" });
   });
 
   // Scenario "Новое название уже занято"
@@ -126,44 +145,49 @@ describe("renameGroup", () => {
     await makeGroup("Семья");
     const friends = await makeGroup("Друзья");
 
-    expect(await renameGroup(friends, "семья")).toEqual({
+    expect(await renameGroup(TEST_USER_ID, friends, "семья")).toEqual({
       ok: false,
       error: "Такая группа уже есть",
     });
 
-    expect(await getGroup(friends)).toEqual({ id: friends, name: "Друзья" });
+    expect(await getGroup(TEST_USER_ID, friends)).toEqual({ id: friends, name: "Друзья" });
   });
 
   // Scenario "Сменили только регистр"
   it("lets a group change only the case of its own name", async () => {
     const id = await makeGroup("теннис");
 
-    expect(await renameGroup(id, "Теннис")).toEqual({ ok: true, id });
+    expect(await renameGroup(TEST_USER_ID, id, "Теннис")).toEqual({ ok: true, id });
 
-    expect(await getGroup(id)).toEqual({ id, name: "Теннис" });
+    expect(await getGroup(TEST_USER_ID, id)).toEqual({ id, name: "Теннис" });
   });
 
   it("lets a group keep its name when it is saved unchanged", async () => {
     const id = await makeGroup("Теннис");
 
-    expect(await renameGroup(id, "Теннис")).toEqual({ ok: true, id });
+    expect(await renameGroup(TEST_USER_ID, id, "Теннис")).toEqual({ ok: true, id });
   });
 
   // Scenario "Пустое новое название"
   it("refuses an empty name and a name over 50 characters, and keeps the old name", async () => {
     const id = await makeGroup("Теннис");
 
-    expect(await renameGroup(id, "   ")).toEqual({ ok: false, error: "Укажите название группы" });
-    expect(await renameGroup(id, "а".repeat(51))).toEqual({
+    expect(await renameGroup(TEST_USER_ID, id, "   ")).toEqual({
+      ok: false,
+      error: "Укажите название группы",
+    });
+    expect(await renameGroup(TEST_USER_ID, id, "а".repeat(51))).toEqual({
       ok: false,
       error: "Не длиннее 50 символов",
     });
 
-    expect(await getGroup(id)).toEqual({ id, name: "Теннис" });
+    expect(await getGroup(TEST_USER_ID, id)).toEqual({ id, name: "Теннис" });
   });
 
   it("fails loudly when the group is gone, for example deleted in another tab", async () => {
-    await expect(renameGroup(12345, "Теннис")).rejects.toThrow("Group 12345 not found");
+    await expect(renameGroup(TEST_USER_ID, 12345, "Теннис")).rejects.toThrow(
+      "Group 12345 not found",
+    );
   });
 });
 
@@ -178,29 +202,29 @@ describe("deleteGroup", () => {
     await addToGroup(petr, tennis);
     await addToGroup(ivan, family);
 
-    await deleteGroup(tennis);
+    await deleteGroup(TEST_USER_ID, tennis);
 
-    expect(await getGroup(tennis)).toBeUndefined();
-    expect((await listGroups()).map((group) => group.name)).toEqual(["Семья"]);
+    expect(await getGroup(TEST_USER_ID, tennis)).toBeUndefined();
+    expect((await listGroups(TEST_USER_ID)).map((group) => group.name)).toEqual(["Семья"]);
     // Both contacts are where they were; only their links to the deleted group are gone.
     expect(await db.$count(contacts)).toBe(2);
     expect(await db.$count(contactGroups)).toBe(1);
     // The other group is untouched.
-    expect((await listGroups())[0].contactCount).toBe(1);
+    expect((await listGroups(TEST_USER_ID))[0].contactCount).toBe(1);
   });
 
   it("does nothing when the group is already gone, for example deleted in another tab", async () => {
     const id = await makeGroup("Теннис");
-    await deleteGroup(id);
+    await deleteGroup(TEST_USER_ID, id);
 
-    await expect(deleteGroup(id)).resolves.toBeUndefined();
+    await expect(deleteGroup(TEST_USER_ID, id)).resolves.toBeUndefined();
   });
 
   it("lets the name be used again", async () => {
     const id = await makeGroup("Теннис");
-    await deleteGroup(id);
+    await deleteGroup(TEST_USER_ID, id);
 
-    expect(await createGroup("Теннис")).toMatchObject({ ok: true });
+    expect(await createGroup(TEST_USER_ID, "Теннис")).toMatchObject({ ok: true });
   });
 });
 
@@ -212,11 +236,13 @@ describe("the number of contacts of a group", () => {
     const petr = await makeContact("Пётр");
     await addToGroup(ivan, tennis);
     await addToGroup(petr, tennis);
-    expect((await listGroups())[0].contactCount).toBe(2);
+    expect((await listGroups(TEST_USER_ID))[0].contactCount).toBe(2);
 
     await db.delete(contacts).where(eq(contacts.id, petr));
 
-    expect(await listGroups()).toEqual([{ id: tennis, name: "Теннис", contactCount: 1 }]);
+    expect(await listGroups(TEST_USER_ID)).toEqual([
+      { id: tennis, name: "Теннис", contactCount: 1 },
+    ]);
   });
 });
 
@@ -230,7 +256,7 @@ describe("listContactGroups", () => {
     await addToGroup(ivan, tennis);
     await addToGroup(ivan, family);
 
-    expect(await listContactGroups(ivan)).toEqual([
+    expect(await listContactGroups(TEST_USER_ID, ivan)).toEqual([
       { id: family, name: "Семья" },
       { id: tennis, name: "Теннис" },
     ]);
@@ -241,7 +267,7 @@ describe("listContactGroups", () => {
     await makeGroup("Теннис");
     const ivan = await makeContact("Иван");
 
-    expect(await listContactGroups(ivan)).toEqual([]);
+    expect(await listContactGroups(TEST_USER_ID, ivan)).toEqual([]);
   });
 
   it("does not give the groups of other contacts", async () => {
@@ -250,7 +276,7 @@ describe("listContactGroups", () => {
     const petr = await makeContact("Пётр");
     await addToGroup(petr, tennis);
 
-    expect(await listContactGroups(ivan)).toEqual([]);
+    expect(await listContactGroups(TEST_USER_ID, ivan)).toEqual([]);
   });
 });
 
@@ -269,30 +295,32 @@ describe("findOrCreateGroup", () => {
   it("gives the id of the group that has the name, whatever the case", async () => {
     const tennis = await makeGroup("Теннис");
 
-    expect(await db.transaction((tx) => findOrCreateGroup(tx, "теннис"))).toBe(tennis);
-    expect(await listGroups()).toHaveLength(1);
+    expect(await db.transaction((tx) => findOrCreateGroup(TEST_USER_ID, tx, "теннис"))).toBe(
+      tennis,
+    );
+    expect(await listGroups(TEST_USER_ID)).toHaveLength(1);
   });
 
   it("creates the group when there is none", async () => {
-    const id = await db.transaction((tx) => findOrCreateGroup(tx, "Аналитики"));
+    const id = await db.transaction((tx) => findOrCreateGroup(TEST_USER_ID, tx, "Аналитики"));
 
-    expect(await getGroup(id)).toEqual({ id, name: "Аналитики" });
+    expect(await getGroup(TEST_USER_ID, id)).toEqual({ id, name: "Аналитики" });
   });
 
   it("makes one group out of two calls at once", async () => {
     const [first, second] = await Promise.all([
-      db.transaction((tx) => findOrCreateGroup(tx, "Теннис")),
-      db.transaction((tx) => findOrCreateGroup(tx, "теннис")),
+      db.transaction((tx) => findOrCreateGroup(TEST_USER_ID, tx, "Теннис")),
+      db.transaction((tx) => findOrCreateGroup(TEST_USER_ID, tx, "теннис")),
     ]);
 
     expect(first).toBe(second);
-    expect(await listGroups()).toHaveLength(1);
+    expect(await listGroups(TEST_USER_ID)).toHaveLength(1);
   });
 });
 
 describe("setContactGroups", () => {
   const save = (contactId: number, input: { groupIds: number[]; newGroupNames: string[] }) =>
-    db.transaction((tx) => setContactGroups(tx, contactId, input));
+    db.transaction((tx) => setContactGroups(TEST_USER_ID, tx, contactId, input));
 
   // Scenario "Отметили группы при добавлении"
   it("puts the contact into the checked groups", async () => {
@@ -316,7 +344,10 @@ describe("setContactGroups", () => {
     await save(ivan, { groupIds: [family], newGroupNames: [] });
 
     expect(await groupNamesOf(ivan)).toEqual(["Семья"]);
-    expect((await listGroups()).map((group) => group.name)).toEqual(["Семья", "Теннис"]);
+    expect((await listGroups(TEST_USER_ID)).map((group) => group.name)).toEqual([
+      "Семья",
+      "Теннис",
+    ]);
   });
 
   it("takes the contact out of every group when none is checked", async () => {
@@ -348,7 +379,7 @@ describe("setContactGroups", () => {
     await save(ivan, { groupIds: [], newGroupNames: ["Аналитики"] });
 
     expect(await groupNamesOf(ivan)).toEqual(["Аналитики"]);
-    expect(await listGroups()).toEqual([
+    expect(await listGroups(TEST_USER_ID)).toEqual([
       { id: expect.any(Number), name: "Аналитики", contactCount: 1 },
     ]);
   });
@@ -361,7 +392,9 @@ describe("setContactGroups", () => {
     await save(ivan, { groupIds: [], newGroupNames: ["теннис"] });
 
     expect(await groupNamesOf(ivan)).toEqual(["Теннис"]);
-    expect(await listGroups()).toEqual([{ id: tennis, name: "Теннис", contactCount: 1 }]);
+    expect(await listGroups(TEST_USER_ID)).toEqual([
+      { id: tennis, name: "Теннис", contactCount: 1 },
+    ]);
   });
 
   it("puts the contact into a group once, however many ways name it", async () => {
@@ -378,7 +411,7 @@ describe("setContactGroups", () => {
     const tennis = await makeGroup("Теннис");
     const family = await makeGroup("Семья");
     const ivan = await makeContact("Иван");
-    await deleteGroup(tennis);
+    await deleteGroup(TEST_USER_ID, tennis);
 
     await save(ivan, { groupIds: [tennis, family], newGroupNames: [] });
 
@@ -391,13 +424,16 @@ describe("setContactGroups", () => {
 
     await expect(
       db.transaction(async (tx) => {
-        await setContactGroups(tx, ivan, { groupIds: [tennis], newGroupNames: ["Аналитики"] });
+        await setContactGroups(TEST_USER_ID, tx, ivan, {
+          groupIds: [tennis],
+          newGroupNames: ["Аналитики"],
+        });
         throw new Error("the contact could not be saved");
       }),
     ).rejects.toThrow("could not be saved");
 
     expect(await groupNamesOf(ivan)).toEqual([]);
-    expect((await listGroups()).map((group) => group.name)).toEqual(["Теннис"]);
+    expect((await listGroups(TEST_USER_ID)).map((group) => group.name)).toEqual(["Теннис"]);
   });
 });
 
@@ -407,7 +443,7 @@ describe("setContactGroupMembership", () => {
     const tennis = await makeGroup("Теннис");
     const ivan = await makeContact("Иван");
 
-    await setContactGroupMembership(ivan, tennis, true);
+    await setContactGroupMembership(TEST_USER_ID, ivan, tennis, true);
 
     expect(await groupNamesOf(ivan)).toEqual(["Теннис"]);
   });
@@ -420,10 +456,12 @@ describe("setContactGroupMembership", () => {
     await addToGroup(ivan, family);
     await addToGroup(petr, family);
 
-    await setContactGroupMembership(ivan, family, false);
+    await setContactGroupMembership(TEST_USER_ID, ivan, family, false);
 
     expect(await groupNamesOf(ivan)).toEqual([]);
-    expect(await listGroups()).toEqual([{ id: family, name: "Семья", contactCount: 1 }]);
+    expect(await listGroups(TEST_USER_ID)).toEqual([
+      { id: family, name: "Семья", contactCount: 1 },
+    ]);
   });
 
   // Scenario "Быстро отметили и сняли"
@@ -431,8 +469,8 @@ describe("setContactGroupMembership", () => {
     const tennis = await makeGroup("Теннис");
     const ivan = await makeContact("Иван");
 
-    await setContactGroupMembership(ivan, tennis, true);
-    await setContactGroupMembership(ivan, tennis, false);
+    await setContactGroupMembership(TEST_USER_ID, ivan, tennis, true);
+    await setContactGroupMembership(TEST_USER_ID, ivan, tennis, false);
 
     expect(await groupNamesOf(ivan)).toEqual([]);
   });
@@ -441,8 +479,8 @@ describe("setContactGroupMembership", () => {
     const tennis = await makeGroup("Теннис");
     const ivan = await makeContact("Иван");
 
-    await setContactGroupMembership(ivan, tennis, true);
-    await setContactGroupMembership(ivan, tennis, true);
+    await setContactGroupMembership(TEST_USER_ID, ivan, tennis, true);
+    await setContactGroupMembership(TEST_USER_ID, ivan, tennis, true);
 
     expect(await db.$count(contactGroups)).toBe(1);
   });
@@ -451,7 +489,9 @@ describe("setContactGroupMembership", () => {
     const tennis = await makeGroup("Теннис");
     const ivan = await makeContact("Иван");
 
-    await expect(setContactGroupMembership(ivan, tennis, false)).resolves.toBeUndefined();
+    await expect(
+      setContactGroupMembership(TEST_USER_ID, ivan, tennis, false),
+    ).resolves.toBeUndefined();
 
     expect(await db.$count(contactGroups)).toBe(0);
   });
@@ -462,8 +502,8 @@ describe("setContactGroupMembership", () => {
     const ivan = await makeContact("Иван");
     await addToGroup(ivan, family);
 
-    await setContactGroupMembership(ivan, tennis, true);
-    await setContactGroupMembership(ivan, tennis, false);
+    await setContactGroupMembership(TEST_USER_ID, ivan, tennis, true);
+    await setContactGroupMembership(TEST_USER_ID, ivan, tennis, false);
 
     expect(await groupNamesOf(ivan)).toEqual(["Семья"]);
   });
@@ -474,10 +514,10 @@ describe("addContactToNewGroup", () => {
   it("creates the group and puts the contact into it", async () => {
     const ivan = await makeContact("Иван");
 
-    const result = await addContactToNewGroup(ivan, "Аналитики");
+    const result = await addContactToNewGroup(TEST_USER_ID, ivan, "Аналитики");
 
     expect(result).toEqual({ ok: true, group: { id: expect.any(Number), name: "Аналитики" } });
-    expect(await listGroups()).toEqual([
+    expect(await listGroups(TEST_USER_ID)).toEqual([
       { id: expect.any(Number), name: "Аналитики", contactCount: 1 },
     ]);
     expect(await groupNamesOf(ivan)).toEqual(["Аналитики"]);
@@ -488,10 +528,12 @@ describe("addContactToNewGroup", () => {
     const tennis = await makeGroup("Теннис");
     const ivan = await makeContact("Иван");
 
-    const result = await addContactToNewGroup(ivan, "теннис");
+    const result = await addContactToNewGroup(TEST_USER_ID, ivan, "теннис");
 
     expect(result).toEqual({ ok: true, group: { id: tennis, name: "Теннис" } });
-    expect(await listGroups()).toEqual([{ id: tennis, name: "Теннис", contactCount: 1 }]);
+    expect(await listGroups(TEST_USER_ID)).toEqual([
+      { id: tennis, name: "Теннис", contactCount: 1 },
+    ]);
   });
 
   it("is fine when the contact is already in the group", async () => {
@@ -499,7 +541,7 @@ describe("addContactToNewGroup", () => {
     const ivan = await makeContact("Иван");
     await addToGroup(ivan, tennis);
 
-    expect(await addContactToNewGroup(ivan, "Теннис")).toMatchObject({ ok: true });
+    expect(await addContactToNewGroup(TEST_USER_ID, ivan, "Теннис")).toMatchObject({ ok: true });
     expect(await db.$count(contactGroups)).toBe(1);
   });
 
@@ -507,24 +549,24 @@ describe("addContactToNewGroup", () => {
   it("refuses an empty name and a name over 50 characters, and saves nothing", async () => {
     const ivan = await makeContact("Иван");
 
-    expect(await addContactToNewGroup(ivan, "  ")).toEqual({
+    expect(await addContactToNewGroup(TEST_USER_ID, ivan, "  ")).toEqual({
       ok: false,
       error: "Укажите название группы",
     });
-    expect(await addContactToNewGroup(ivan, "а".repeat(51))).toEqual({
+    expect(await addContactToNewGroup(TEST_USER_ID, ivan, "а".repeat(51))).toEqual({
       ok: false,
       error: "Не длиннее 50 символов",
     });
 
-    expect(await listGroups()).toEqual([]);
+    expect(await listGroups(TEST_USER_ID)).toEqual([]);
   });
 
   it("creates no group when the contact is gone, for example deleted in another tab", async () => {
     const ivan = await makeContact("Иван");
     await db.delete(contacts).where(eq(contacts.id, ivan));
 
-    await expect(addContactToNewGroup(ivan, "Аналитики")).rejects.toThrow();
+    await expect(addContactToNewGroup(TEST_USER_ID, ivan, "Аналитики")).rejects.toThrow();
 
-    expect(await listGroups()).toEqual([]);
+    expect(await listGroups(TEST_USER_ID)).toEqual([]);
   });
 });

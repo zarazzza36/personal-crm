@@ -3,10 +3,12 @@
 // opening the same address sees the same contacts.
 
 import type { Page } from "@playwright/test";
+import { randomUUID } from "node:crypto";
+import { eq } from "drizzle-orm";
 
-import { contacts } from "../src/db/schema";
+import { contacts, users } from "../src/db/schema";
 
-import { expect, test } from "./fixtures";
+import { expect, signIn, test } from "./fixtures";
 
 const NEW_CONTACT = {
   name: "Вера Лаптева",
@@ -28,9 +30,13 @@ test("a contact added, found and noted is kept, the same in another browser", as
   baseURL,
   database,
 }) => {
+  const email = `main-${randomUUID()}@example.com`;
+  await page.context().setExtraHTTPHeaders({ "x-real-ip": "10.1.1.1" });
+  await signIn(page, email);
+  const [user] = await database.select({ id: users.id }).from(users).where(eq(users.email, email));
   await database.insert(contacts).values([
-    { name: "Анна Смирнова", about: "Соседка по даче" },
-    { name: "Борис Котов", about: "Механик" },
+    { userId: user.id, name: "Анна Смирнова", about: "Соседка по даче" },
+    { userId: user.id, name: "Борис Котов", about: "Механик" },
   ]);
 
   await test.step("opened: the list shows every contact", async () => {
@@ -93,9 +99,13 @@ test("a contact added, found and noted is kept, the same in another browser", as
 
   await test.step("another browser at the same address: the same contacts and the note", async () => {
     // A context of its own: no cookies, storage or cache of the first one, as another browser.
-    const otherBrowser = await browser.newContext({ baseURL });
+    const otherBrowser = await browser.newContext({
+      baseURL,
+      extraHTTPHeaders: { "x-real-ip": "10.1.1.2" },
+    });
     try {
       const other = await otherBrowser.newPage();
+      await signIn(other, email);
       await other.goto("/");
 
       await expect(contactList(other).getByRole("listitem")).toHaveText([

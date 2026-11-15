@@ -1,6 +1,6 @@
 import "server-only";
 
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 
 import type { ContactInput } from "@/lib/contact-input";
 
@@ -14,11 +14,16 @@ type Executor = Pick<typeof db, "insert" | "update">;
  * Saves a new contact and gives its id. A frequency chosen in the form starts its countdown now:
  * until the first note the term counts from this moment.
  */
-export async function insertContact(executor: Executor, input: ContactInput): Promise<number> {
+export async function insertContact(
+  userId: string,
+  executor: Executor,
+  input: ContactInput,
+): Promise<number> {
   const [row] = await executor
     .insert(contacts)
     .values({
       ...input,
+      userId,
       contactFrequencySetAt: input.contactFrequency ? sql`now()` : null,
     })
     .returning({ id: contacts.id });
@@ -30,6 +35,7 @@ export async function insertContact(executor: Executor, input: ContactInput): Pr
  * A changed frequency starts its countdown now, the same one keeps it, no frequency clears it.
  */
 export async function updateContact(
+  userId: string,
   executor: Executor,
   id: number,
   input: ContactInput,
@@ -46,7 +52,7 @@ export async function updateContact(
         else now()
       end`,
     })
-    .where(eq(contacts.id, id))
+    .where(and(eq(contacts.id, id), eq(contacts.userId, userId)))
     .returning({ id: contacts.id });
   return row?.id;
 }

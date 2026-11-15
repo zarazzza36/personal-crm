@@ -10,7 +10,7 @@ RUN pnpm install --frozen-lockfile
 COPY . .
 # The build loads the database module but sends no queries, so any address will
 # do; a query at build time would fail here instead of baking data into pages.
-RUN BUILD_STANDALONE=1 DATABASE_URL=postgres://build@127.0.0.1:1/build pnpm build
+RUN BUILD_STANDALONE=1 DATABASE_URL=postgres://build@127.0.0.1:1/build BETTER_AUTH_SECRET=build-only-secret-not-used-in-production BETTER_AUTH_URL=http://localhost:3000 pnpm build
 # Migrations need only drizzle-orm and postgres, which have no dependencies of
 # their own: copy them as plain folders out of pnpm's linked node_modules.
 RUN mkdir -p migrate/node_modules \

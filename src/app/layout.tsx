@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Mono, Unbounded } from "next/font/google";
-import { Reminders } from "@/components/reminders";
-import { SiteHeader } from "@/components/site-header";
 import "./globals.css";
 
 // The landing's fonts: Unbounded for headings and buttons, IBM Plex Mono for text.
@@ -43,10 +41,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         {/* The grid stays in place while the page scrolls, so a sticky header at the top
             of the page can repeat it and its lines match the page's. */}
         <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 bg-grid" />
-        <Reminders>
-          <SiteHeader />
-          {children}
-        </Reminders>
+        {children}
       </body>
     </html>
   );

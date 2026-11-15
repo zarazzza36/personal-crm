@@ -2,10 +2,12 @@
 // starts from nothing and says itself what it needs in the database.
 
 import { test as base } from "@playwright/test";
+import type { Page } from "@playwright/test";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 
 import { resetTestDatabase } from "../src/test/reset-test-database";
+import { getMailpitSignInLink } from "../src/test/mailpit";
 
 type TestFixtures = {
   /** Empties the tables before every test; nobody asks for it by name. */
@@ -43,3 +45,21 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
 });
 
 export { expect } from "@playwright/test";
+
+export async function signIn(page: Page, email: string) {
+  await page.goto("/login");
+  await page.getByLabel("Почта", { exact: true }).fill(email);
+  await page.getByRole("button", { name: "Получить ссылку" }).click();
+  await base
+    .expect(page.getByText(`Ссылка для входа отправлена на ${email}`))
+    .toBeVisible({ timeout: 20_000 });
+  let link = "";
+  await base.expect
+    .poll(async () => {
+      link = (await getMailpitSignInLink(email)) ?? "";
+      return Boolean(link);
+    })
+    .toBe(true);
+  await page.goto(link);
+  await base.expect(page.getByRole("button", { name: "Добавить контакт" })).toBeVisible();
+}

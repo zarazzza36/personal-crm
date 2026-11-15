@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 /** The landing's header: the logo leads back to the contact list. */
-export function SiteHeader() {
+export function SiteHeader({ children }: { children?: React.ReactNode }) {
   return (
     // On a phone the logo lines up with the page content; wider, it spans the page like the landing,
     // whose header content is at most 1280px wide (1376px with the side padding).
@@ -14,7 +14,9 @@ export function SiteHeader() {
         Волки с Лизюкова
       </Link>
       {/* May wrap onto two lines on the narrowest phones rather than run off the screen. */}
-      <span className="text-right text-11 tracking-label text-dim lg:text-xs">ДЛЯ ЛОГИСТОВ</span>
+      {children ?? (
+        <span className="text-right text-11 tracking-label text-dim lg:text-xs">ДЛЯ ЛОГИСТОВ</span>
+      )}
     </header>
   );
 }

@@ -31,7 +31,8 @@ test("вход обязателен, выход действует только 
     await page.getByRole("button", { name: "Выйти" }).click();
     await expect(page).toHaveURL(/\/login$/);
     await page.goBack();
-    await expect(page).toHaveURL(/\/login$/);
+    await expect(page).toHaveURL((url) => url.pathname === "/login");
+    await expect(page.getByLabel("Почта")).toBeVisible();
     await page.goto("/");
     await expect(page).toHaveURL(/\/login$/);
     await other.reload();

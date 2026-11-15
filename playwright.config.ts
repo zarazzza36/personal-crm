@@ -47,7 +47,12 @@ export default defineConfig({
     // `/health`, which answers 200 only when the app can reach its database.
     command: `pnpm exec tsx e2e/prepare-database.ts && pnpm build && pnpm start --port ${PORT}`,
     url: `http://localhost:${PORT}/health`,
-    env: { DATABASE_URL: e2eUrl },
+    env: {
+      DATABASE_URL: e2eUrl,
+      SMTP_URL: "smtp://127.0.0.1:1025",
+      BETTER_AUTH_URL: `http://localhost:${PORT}`,
+      BETTER_AUTH_SECRET: "test-only-secret-at-least-32-characters-long",
+    },
     // Always the app built from the current code, never a server left from an older run.
     reuseExistingServer: false,
     timeout: 5 * 60_000,

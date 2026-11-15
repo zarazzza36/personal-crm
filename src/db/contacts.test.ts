@@ -1,3 +1,8 @@
+import { beforeEach as prepareUser } from "vitest";
+import { makeTestUser, TEST_USER_ID } from "@/test/test-user";
+
+prepareUser(makeTestUser);
+
 import { eq, sql } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
@@ -51,30 +56,30 @@ describe("insertContact", () => {
   // Scenario "Задали частоту при добавлении"
   it("saves the frequency and starts the countdown now", async () => {
     const before = await databaseNow();
-    const id = await insertContact(db, contactInput({ contactFrequency: "month" }));
+    const id = await insertContact(TEST_USER_ID, db, contactInput({ contactFrequency: "month" }));
 
-    const contact = await getContact(id);
+    const contact = await getContact(TEST_USER_ID, id);
     expect(contact.contactFrequency).toBe("month");
     expect((await frequencySetAt(id))!.getTime()).toBeGreaterThanOrEqual(before.getTime());
   });
 
   // Scenario "Добавили контакт, не трогая поле"
   it("leaves the frequency and its start empty when none is chosen", async () => {
-    const id = await insertContact(db, contactInput());
+    const id = await insertContact(TEST_USER_ID, db, contactInput());
 
-    const contact = await getContact(id);
+    const contact = await getContact(TEST_USER_ID, id);
     expect(contact.contactFrequency).toBeNull();
     expect(await frequencySetAt(id)).toBeNull();
     expect(contact.dueDay).toBeNull();
     expect(contact.isDue).toBe(false);
-    expect(await listDueContacts()).toEqual([]);
+    expect(await listDueContacts(TEST_USER_ID)).toEqual([]);
   });
 
   // Scenario "Заметок нет": until the first note the countdown starts the day the frequency is set.
   it("counts the term from today while there are no notes", async () => {
-    const id = await insertContact(db, contactInput({ contactFrequency: "week" }));
+    const id = await insertContact(TEST_USER_ID, db, contactInput({ contactFrequency: "week" }));
 
-    const contact = await getContact(id);
+    const contact = await getContact(TEST_USER_ID, id);
     expect(contact.dueDay).toBe(await moscowDayFromToday(7));
     expect(contact.isDue).toBe(false);
   });
@@ -89,9 +94,9 @@ describe("updateContact", () => {
     });
     const before = await databaseNow();
 
-    await updateContact(db, id, contactInput({ contactFrequency: "week" }));
+    await updateContact(TEST_USER_ID, db, id, contactInput({ contactFrequency: "week" }));
 
-    const contact = await getContact(id);
+    const contact = await getContact(TEST_USER_ID, id);
     expect(contact.contactFrequency).toBe("week");
     expect((await frequencySetAt(id))!.getTime()).toBeGreaterThanOrEqual(before.getTime());
     // A week after the change, not after the day the month was set.
@@ -106,15 +111,16 @@ describe("updateContact", () => {
       contactFrequency: "month",
       contactFrequencySetAt: setAt,
     });
-    const dueDayBefore = (await getContact(id)).dueDay;
+    const dueDayBefore = (await getContact(TEST_USER_ID, id)).dueDay;
 
     await updateContact(
+      TEST_USER_ID,
       db,
       id,
       contactInput({ contactFrequency: "month", phone: "+7 000 111-22-33" }),
     );
 
-    const contact = await getContact(id);
+    const contact = await getContact(TEST_USER_ID, id);
     expect(contact.phone).toBe("+7 000 111-22-33");
     expect(await frequencySetAt(id)).toEqual(setAt);
     expect(contact.dueDay).toBe(dueDayBefore);
@@ -126,9 +132,9 @@ describe("updateContact", () => {
     const id = await makeContact("Иван Петров");
     await makeNote(id, { createdAt: daysAgo(730) });
 
-    await updateContact(db, id, contactInput({ contactFrequency: "month" }));
+    await updateContact(TEST_USER_ID, db, id, contactInput({ contactFrequency: "month" }));
 
-    expect(await listDueContacts()).toEqual([
+    expect(await listDueContacts(TEST_USER_ID)).toEqual([
       { id, name: "Иван Петров", contactFrequency: "month", daysSinceLastNote: 730 },
     ]);
   });
@@ -140,11 +146,11 @@ describe("updateContact", () => {
       contactFrequencySetAt: daysAgo(30),
     });
     await makeNote(id, { createdAt: daysAgo(19) });
-    expect((await getContact(id)).isDue).toBe(false);
+    expect((await getContact(TEST_USER_ID, id)).isDue).toBe(false);
 
-    await updateContact(db, id, contactInput({ contactFrequency: "week" }));
+    await updateContact(TEST_USER_ID, db, id, contactInput({ contactFrequency: "week" }));
 
-    const contact = await getContact(id);
+    const contact = await getContact(TEST_USER_ID, id);
     expect(contact.dueDay).toBe(await moscowDayFromToday(-12));
     expect(contact.isDue).toBe(true);
   });
@@ -155,18 +161,18 @@ describe("updateContact", () => {
       contactFrequency: "week",
       contactFrequencySetAt: daysAgo(30),
     });
-    expect(await listDueContacts()).toHaveLength(1);
+    expect(await listDueContacts(TEST_USER_ID)).toHaveLength(1);
 
-    await updateContact(db, id, contactInput({ contactFrequency: null }));
+    await updateContact(TEST_USER_ID, db, id, contactInput({ contactFrequency: null }));
 
-    const contact = await getContact(id);
+    const contact = await getContact(TEST_USER_ID, id);
     expect(contact.contactFrequency).toBeNull();
     expect(await frequencySetAt(id)).toBeNull();
     expect(contact.dueDay).toBeNull();
-    expect(await listDueContacts()).toEqual([]);
+    expect(await listDueContacts(TEST_USER_ID)).toEqual([]);
   });
 
   it("gives nothing when the contact is gone, for example deleted in another tab", async () => {
-    expect(await updateContact(db, 999, contactInput())).toBeUndefined();
+    expect(await updateContact(TEST_USER_ID, db, 999, contactInput())).toBeUndefined();
   });
 });

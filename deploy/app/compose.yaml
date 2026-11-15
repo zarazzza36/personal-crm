@@ -29,6 +29,7 @@ services:
     command: ["node", "migrate.mts"]
     environment:
       DATABASE_URL: *database-url
+      OWNER_EMAIL: ${OWNER_EMAIL:-}
     networks: [crm]
     depends_on:
       crm-postgres:
@@ -39,6 +40,9 @@ services:
     restart: unless-stopped
     environment:
       DATABASE_URL: *database-url
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?BETTER_AUTH_SECRET is not set}
+      BETTER_AUTH_URL: https://app.volki-lzkv.ru
+      SMTP_URL: ${SMTP_URL:?SMTP_URL is not set}
     # Only nginx on the same server reaches the app; it serves app.volki-lzkv.ru.
     ports:
       - "127.0.0.1:3100:3000"

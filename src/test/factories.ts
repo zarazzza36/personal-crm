@@ -4,10 +4,11 @@
 import { db } from "@/db";
 import { createGroup } from "@/db/groups";
 import { contactGroups, contacts, notes } from "@/db/schema";
+import { TEST_USER_ID } from "@/test/test-user";
 
 /** Creates a group that must succeed and gives its id. */
 export async function makeGroup(name: string) {
-  const result = await createGroup(name);
+  const result = await createGroup(TEST_USER_ID, name);
   if (!result.ok) throw new Error(`Could not create "${name}": ${result.error}`);
   return result.id;
 }
@@ -18,7 +19,7 @@ export async function makeContact(
 ) {
   const [contact] = await db
     .insert(contacts)
-    .values({ ...values, name })
+    .values({ userId: TEST_USER_ID, ...values, name })
     .returning({ id: contacts.id });
   return contact.id;
 }
@@ -56,6 +57,7 @@ export async function makeContacts(count: number, prefix = "Контакт") {
     .insert(contacts)
     .values(
       Array.from({ length: count }, (_, index) => ({
+        userId: TEST_USER_ID,
         name: `${prefix} ${String(index + 1).padStart(3, "0")}`,
       })),
     )

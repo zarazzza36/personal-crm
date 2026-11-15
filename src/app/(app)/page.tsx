@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 
+import { getCurrentUser } from "@/auth/session";
 import { AddContactButton } from "@/components/contact-dialog";
 import { ContactList } from "@/components/contact-list";
 import { GroupFilter } from "@/components/group-filter";
@@ -39,12 +40,13 @@ function firstValue(value: string | string[] | undefined) {
 }
 
 async function Contacts({ searchParams }: { searchParams: SearchParams }) {
+  const { id: userId } = await getCurrentUser();
   const params = await searchParams;
   const query = (firstValue(params.q) ?? "").trim();
 
   // The group of the address counts only while it exists: a link to a deleted group, or a
   // made-up number, shows the whole list.
-  const groups = await listGroups();
+  const groups = await listGroups(userId);
   const requestedGroupId = parseGroupId(firstValue(params.group));
   const group = groups.find((candidate) => candidate.id === requestedGroupId);
   const groupId = group?.id ?? null;
@@ -55,14 +57,17 @@ async function Contacts({ searchParams }: { searchParams: SearchParams }) {
   const [firstPage, total, matching, addedContact, dueContacts] = await Promise.all([
     // A search shows everything it has found at once; the full list loads part by part.
     query
-      ? searchContacts(query, groupId).then((items): ContactsPage => ({ items, nextCursor: null }))
-      : listContactsPage(null, CONTACTS_PAGE_SIZE, groupId),
-    countContacts(),
+      ? searchContacts(userId, query, groupId).then((items): ContactsPage => ({
+          items,
+          nextCursor: null,
+        }))
+      : listContactsPage(userId, null, CONTACTS_PAGE_SIZE, groupId),
+    countContacts(userId),
     // With a group and no query the list comes in parts: how many it has in all is asked apart.
-    group && !query ? countContacts(group.id) : undefined,
-    addedId ? getContactListItem(addedId) : undefined,
+    group && !query ? countContacts(userId, group.id) : undefined,
+    addedId ? getContactListItem(userId, addedId) : undefined,
     // A search or a group shows only what it has found, without "Пора связаться".
-    query || group ? [] : listDueContacts(),
+    query || group ? [] : listDueContacts(userId),
   ]);
 
   return (
@@ -118,7 +123,7 @@ function emptyListText(query: string, groupName: string | undefined) {
   if (query && groupName) return `Никого не нашлось по запросу «${query}» в группе «${groupName}»`;
   if (query) return `Никого не нашлось по запросу «${query}»`;
   if (groupName) return `В группе «${groupName}» пока никого нет`;
-  return "Пока нет ни одного контакта. Добавьте первый.";
+  return "Пока нет ни одного контакта. Добавьте первый контакт.";
 }
 
 // No yellow square here: on the landing it belongs to the logo only.

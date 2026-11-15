@@ -1,10 +1,11 @@
 "use server";
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { refresh, revalidatePath } from "next/cache";
 import { redirect, RedirectType } from "next/navigation";
 import { z } from "zod";
 
+import { getCurrentUser } from "@/auth/session";
 import { db } from "@/db";
 import * as contactData from "@/db/contacts";
 import * as groupData from "@/db/groups";
@@ -39,7 +40,9 @@ export async function loadContactsPage(
   limit: unknown,
   groupId: unknown,
 ): Promise<ContactsPage> {
+  const { id: userId } = await getCurrentUser();
   return listContactsPage(
+    userId,
     contactCursorSchema.parse(cursor),
     contactsLimitSchema.parse(limit),
     groupIdSchema.nullable().parse(groupId),
@@ -65,6 +68,7 @@ function parseContactForm(input: unknown, groups: unknown) {
 }
 
 export async function createContact(input: unknown, groups: unknown): Promise<SaveContactResult> {
+  const { id: userId } = await getCurrentUser();
   const parsed = parseContactForm(input, groups);
   if (!parsed.ok) {
     return { ok: false, errors: parsed.errors };
@@ -72,8 +76,8 @@ export async function createContact(input: unknown, groups: unknown): Promise<Sa
 
   // The contact and its groups are saved together or not at all.
   const createdId = await db.transaction(async (tx) => {
-    const id = await contactData.insertContact(tx, parsed.contact);
-    await groupData.setContactGroups(tx, id, parsed.groups);
+    const id = await contactData.insertContact(userId, tx, parsed.contact);
+    await groupData.setContactGroups(userId, tx, id, parsed.groups);
     return id;
   });
 
@@ -89,6 +93,7 @@ export async function updateContact(
   input: unknown,
   groups: unknown,
 ): Promise<SaveContactResult> {
+  const { id: userId } = await getCurrentUser();
   const contactId = contactIdSchema.parse(id);
   const parsed = parseContactForm(input, groups);
   if (!parsed.ok) {
@@ -96,11 +101,11 @@ export async function updateContact(
   }
 
   await db.transaction(async (tx) => {
-    const updatedId = await contactData.updateContact(tx, contactId, parsed.contact);
+    const updatedId = await contactData.updateContact(userId, tx, contactId, parsed.contact);
     if (updatedId === undefined) {
       throw new Error(`Contact ${contactId} not found`);
     }
-    await groupData.setContactGroups(tx, updatedId, parsed.groups);
+    await groupData.setContactGroups(userId, tx, updatedId, parsed.groups);
   });
 
   // The contact is shown both in its card and in the list: refresh every page.
@@ -110,9 +115,10 @@ export async function updateContact(
 
 /** Deletes the contact with all its notes (the database cascades), then opens the list. */
 export async function deleteContact(id: unknown): Promise<never> {
+  const { id: userId } = await getCurrentUser();
   const contactId = contactIdSchema.parse(id);
 
-  await db.delete(contacts).where(eq(contacts.id, contactId));
+  await db.delete(contacts).where(and(eq(contacts.id, contactId), eq(contacts.userId, userId)));
 
   revalidatePath("/", "layout");
   // Replace the card in the browser history: "Back" must not lead to a deleted contact.
@@ -120,13 +126,17 @@ export async function deleteContact(id: unknown): Promise<never> {
 }
 
 export async function addNote(contactId: unknown, body: unknown): Promise<AddNoteResult> {
+  const { id: userId } = await getCurrentUser();
   const id = contactIdSchema.parse(contactId);
   const parsed = noteInputSchema.safeParse({ body });
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0].message };
   }
 
-  await db.insert(notes).values({ contactId: id, body: parsed.data.body });
+  const inserted = await db.execute(sql`insert into ${notes} (contact_id, body)
+    select ${contacts.id}, ${parsed.data.body} from ${contacts}
+    where ${contacts.id} = ${id} and ${contacts.userId} = ${userId} returning id`);
+  if (!inserted.length) throw new Error(`Contact ${id} not found`);
 
   // A note restarts the countdown: "Пора связаться" on the list must not show the contact
   // when the list is opened by a link or by the browser's "Back".
@@ -139,7 +149,8 @@ export async function addNote(contactId: unknown, body: unknown): Promise<AddNot
 // checked in `src/db/groups.ts`, so every caller gets the same rules.
 
 export async function createGroup(name: unknown): Promise<SaveGroupResult> {
-  const result = await groupData.createGroup(z.string().parse(name));
+  const { id: userId } = await getCurrentUser();
+  const result = await groupData.createGroup(userId, z.string().parse(name));
 
   if (result.ok) {
     revalidatePath("/", "layout");
@@ -148,7 +159,12 @@ export async function createGroup(name: unknown): Promise<SaveGroupResult> {
 }
 
 export async function renameGroup(id: unknown, name: unknown): Promise<SaveGroupResult> {
-  const result = await groupData.renameGroup(groupIdSchema.parse(id), z.string().parse(name));
+  const { id: userId } = await getCurrentUser();
+  const result = await groupData.renameGroup(
+    userId,
+    groupIdSchema.parse(id),
+    z.string().parse(name),
+  );
 
   if (result.ok) {
     revalidatePath("/", "layout");
@@ -158,7 +174,8 @@ export async function renameGroup(id: unknown, name: unknown): Promise<SaveGroup
 
 /** Deletes the group; its contacts stay and just leave the group. */
 export async function deleteGroup(id: unknown): Promise<void> {
-  await groupData.deleteGroup(groupIdSchema.parse(id));
+  const { id: userId } = await getCurrentUser();
+  await groupData.deleteGroup(userId, groupIdSchema.parse(id));
 
   revalidatePath("/", "layout");
 }
@@ -169,7 +186,9 @@ export async function setContactGroupMembership(
   groupId: unknown,
   member: unknown,
 ): Promise<void> {
+  const { id: userId } = await getCurrentUser();
   await groupData.setContactGroupMembership(
+    userId,
     contactIdSchema.parse(contactId),
     groupIdSchema.parse(groupId),
     z.boolean().parse(member),
@@ -183,7 +202,9 @@ export async function addContactToNewGroup(
   contactId: unknown,
   name: unknown,
 ): Promise<AddToGroupResult> {
+  const { id: userId } = await getCurrentUser();
   const result = await groupData.addContactToNewGroup(
+    userId,
     contactIdSchema.parse(contactId),
     z.string().parse(name),
   );
@@ -196,7 +217,8 @@ export async function addContactToNewGroup(
 
 /** Every reminder, due or still ahead: the notifications ask for them on every page. */
 export async function loadReminders(): Promise<Reminder[]> {
-  return listReminders();
+  const { id: userId } = await getCurrentUser();
+  return listReminders(userId);
 }
 
 /** Sets the note's only reminder to `date` and `time` in Moscow time, replacing the old one. */
@@ -204,6 +226,7 @@ export async function setNoteReminder(
   noteId: unknown,
   input: unknown,
 ): Promise<SaveReminderResult> {
+  const { id: userId } = await getCurrentUser();
   const id = noteIdSchema.parse(noteId);
   const parsed = reminderInputSchema.safeParse(input);
   if (!parsed.success) {
@@ -213,7 +236,15 @@ export async function setNoteReminder(
   const [updated] = await db
     .update(notes)
     .set({ remindAt: parsed.data })
-    .where(eq(notes.id, id))
+    .where(
+      and(
+        eq(notes.id, id),
+        inArray(
+          notes.contactId,
+          db.select({ id: contacts.id }).from(contacts).where(eq(contacts.userId, userId)),
+        ),
+      ),
+    )
     .returning({ id: notes.id });
   if (!updated) {
     throw new Error(`Note ${id} not found`);
@@ -224,9 +255,21 @@ export async function setNoteReminder(
 }
 
 export async function removeNoteReminder(noteId: unknown): Promise<void> {
+  const { id: userId } = await getCurrentUser();
   const id = noteIdSchema.parse(noteId);
 
-  await db.update(notes).set({ remindAt: null }).where(eq(notes.id, id));
+  await db
+    .update(notes)
+    .set({ remindAt: null })
+    .where(
+      and(
+        eq(notes.id, id),
+        inArray(
+          notes.contactId,
+          db.select({ id: contacts.id }).from(contacts).where(eq(contacts.userId, userId)),
+        ),
+      ),
+    );
 
   refresh();
 }
@@ -236,13 +279,23 @@ export async function removeNoteReminder(noteId: unknown): Promise<void> {
  * so one moved to another time in another tab meanwhile stays.
  */
 export async function dismissReminder(noteId: unknown, remindAt: unknown): Promise<void> {
+  const { id: userId } = await getCurrentUser();
   const id = noteIdSchema.parse(noteId);
   const shownRemindAt = reminderMomentSchema.parse(remindAt);
 
   await db
     .update(notes)
     .set({ remindAt: null })
-    .where(and(eq(notes.id, id), eq(notes.remindAt, shownRemindAt)));
+    .where(
+      and(
+        eq(notes.id, id),
+        eq(notes.remindAt, shownRemindAt),
+        inArray(
+          notes.contactId,
+          db.select({ id: contacts.id }).from(contacts).where(eq(contacts.userId, userId)),
+        ),
+      ),
+    );
 
   refresh();
 }

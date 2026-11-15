@@ -7,16 +7,25 @@ import { contacts, notes } from "@/db/schema";
 
 import { resetDatabase } from "./database";
 import { withDatabaseName } from "./database-url";
+import { makeTestUser, TEST_USER_ID } from "./test-user";
 
 it("empties every table and starts the ids from 1 again", async () => {
-  const [first] = await db.insert(contacts).values({ name: "Иван" }).returning();
+  await makeTestUser();
+  const [first] = await db
+    .insert(contacts)
+    .values({ name: "Иван", userId: TEST_USER_ID })
+    .returning();
   await db.insert(notes).values({ contactId: first.id, body: "Позвонить" });
 
   await resetDatabase();
 
   expect(await db.$count(contacts)).toBe(0);
   expect(await db.$count(notes)).toBe(0);
-  const [second] = await db.insert(contacts).values({ name: "Пётр" }).returning();
+  await makeTestUser();
+  const [second] = await db
+    .insert(contacts)
+    .values({ name: "Пётр", userId: TEST_USER_ID })
+    .returning();
   expect(second.id).toBe(1);
 });
 

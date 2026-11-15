@@ -39,7 +39,7 @@ import { contacts, notes } from "./schema";
 const groupNames = sql<string[]>`coalesce((
   select array_agg(g.name order by g.name collate "ru-x-icu", g.id)
   from contact_groups cg
-  inner join groups g on g.id = cg.group_id
+  inner join groups g on g.id = cg.group_id and g.user_id = ${contacts}.user_id
   where cg.contact_id = ${contacts}.id
 ), '{}')`;
 
@@ -113,8 +113,9 @@ function inGroup(groupId: number | null | undefined) {
   return groupId == null
     ? undefined
     : sql`exists (
-        select 1 from contact_groups
+        select 1 from contact_groups inner join groups on groups.id = contact_groups.group_id
         where contact_groups.contact_id = ${contacts}.id and contact_groups.group_id = ${groupId}
+          and groups.user_id = ${contacts}.user_id
       )`;
 }
 
@@ -144,6 +145,7 @@ function withinRange(column: PgColumn, range: Range | null): SQL[] {
  * With `groupId`, only the contacts of that group.
  */
 export async function searchContacts(
+  userId: string,
   query: string,
   groupId?: number | null,
 ): Promise<ContactListItem[]> {
@@ -154,6 +156,7 @@ export async function searchContacts(
     .from(contacts)
     .where(
       and(
+        eq(contacts.userId, userId),
         ...words.map(matchesWord),
         ...withinRange(contacts.capacityTons, tons),
         ...withinRange(contacts.volumeCubicMeters, cubicMeters),
@@ -168,6 +171,7 @@ export async function searchContacts(
  * with `groupId`, only the contacts of that group.
  */
 export async function listContactsPage(
+  userId: string,
   cursor: ContactCursor | null,
   limit: number,
   groupId?: number | null,
@@ -177,6 +181,7 @@ export async function listContactsPage(
     .from(contacts)
     .where(
       and(
+        eq(contacts.userId, userId),
         cursor
           ? sql`(${nameInRussianOrder}, ${contacts.id}) > (${cursor.name}, ${cursor.id})`
           : undefined,
@@ -196,28 +201,34 @@ export async function listContactsPage(
 }
 
 /** How many contacts there are; with `groupId`, how many of them are in that group. */
-export async function countContacts(groupId?: number | null) {
-  return db.$count(contacts, inGroup(groupId));
+export async function countContacts(userId: string, groupId?: number | null) {
+  return db.$count(contacts, and(eq(contacts.userId, userId), inGroup(groupId)));
 }
 
 /** The contact as a row of the list. */
-export async function getContactListItem(id: number): Promise<ContactListItem | undefined> {
-  const [contact] = await db.select(contactListColumns).from(contacts).where(eq(contacts.id, id));
+export async function getContactListItem(
+  userId: string,
+  id: number,
+): Promise<ContactListItem | undefined> {
+  const [contact] = await db
+    .select(contactListColumns)
+    .from(contacts)
+    .where(and(eq(contacts.id, id), eq(contacts.userId, userId)));
   return contact;
 }
 
 /** The contact with the day it is time to talk to them again. */
-export async function getContact(id: number) {
+export async function getContact(userId: string, id: number) {
   const [contact] = await db
     .select({ ...getTableColumns(contacts), dueDay, isDue })
     .from(contacts)
     .crossJoinLateral(lastNote)
-    .where(eq(contacts.id, id));
+    .where(and(eq(contacts.id, id), eq(contacts.userId, userId)));
   return contact;
 }
 
 /** Contacts it is time to talk to: the earliest due day first, then alphabetically. */
-export async function listDueContacts(): Promise<DueContact[]> {
+export async function listDueContacts(userId: string): Promise<DueContact[]> {
   const rows = await db
     .select({
       id: contacts.id,
@@ -227,7 +238,7 @@ export async function listDueContacts(): Promise<DueContact[]> {
     })
     .from(contacts)
     .crossJoinLateral(lastNote)
-    .where(and(isNotNull(contacts.contactFrequency), isDue))
+    .where(and(eq(contacts.userId, userId), isNotNull(contacts.contactFrequency), isDue))
     .orderBy(asc(dueDay), ...alphabeticalOrder);
 
   return rows.flatMap(({ contactFrequency, ...row }) =>
@@ -236,7 +247,7 @@ export async function listDueContacts(): Promise<DueContact[]> {
 }
 
 /** Every note with a reminder, due or still ahead, the earliest first. */
-export async function listReminders(): Promise<Reminder[]> {
+export async function listReminders(userId: string): Promise<Reminder[]> {
   const rows = await db
     .select({
       noteId: notes.id,
@@ -247,16 +258,17 @@ export async function listReminders(): Promise<Reminder[]> {
     })
     .from(notes)
     .innerJoin(contacts, eq(notes.contactId, contacts.id))
-    .where(isNotNull(notes.remindAt))
+    .where(and(eq(contacts.userId, userId), isNotNull(notes.remindAt)))
     .orderBy(asc(notes.remindAt), asc(notes.id));
 
   return rows.flatMap(({ remindAt, ...row }) => (remindAt ? [{ ...row, remindAt }] : []));
 }
 
-export async function listNotes(contactId: number) {
+export async function listNotes(userId: string, contactId: number) {
   return db
-    .select()
+    .select(getTableColumns(notes))
     .from(notes)
-    .where(eq(notes.contactId, contactId))
+    .innerJoin(contacts, eq(notes.contactId, contacts.id))
+    .where(and(eq(notes.contactId, contactId), eq(contacts.userId, userId)))
     .orderBy(desc(notes.createdAt), desc(notes.id));
 }

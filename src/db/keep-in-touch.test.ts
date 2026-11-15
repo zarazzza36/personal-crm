@@ -1,3 +1,8 @@
+import { beforeEach as prepareUser } from "vitest";
+import { makeTestUser, TEST_USER_ID } from "@/test/test-user";
+
+prepareUser(makeTestUser);
+
 // "Пора связаться": how the database counts the term of a contact and who is in the block.
 // The tests put contacts and notes with the dates they need; the term is counted by the database.
 
@@ -23,7 +28,7 @@ async function dueDayAfterNote(frequency: ContactFrequency, noteAt: Date, name =
     contactFrequencySetAt: noteAt,
   });
   await makeNote(id, { createdAt: noteAt });
-  return (await getContact(id)).dueDay;
+  return (await getContact(TEST_USER_ID, id)).dueDay;
 }
 
 /** A contact with the frequency whose last note was `days` days ago. */
@@ -38,7 +43,7 @@ async function contactNotedDaysAgo(name: string, frequency: ContactFrequency, da
 
 /** Names in the block, top to bottom. */
 async function dueNames() {
-  return (await listDueContacts()).map((contact) => contact.name);
+  return (await listDueContacts(TEST_USER_ID)).map((contact) => contact.name);
 }
 
 describe("the day the term ends", () => {
@@ -83,7 +88,7 @@ describe("the day the term ends", () => {
       contactFrequencySetAt: moscow("2026-11-01T10:00"),
     });
 
-    expect((await getContact(id)).dueDay).toBe("2026-12-01");
+    expect((await getContact(TEST_USER_ID, id)).dueDay).toBe("2026-12-01");
   });
 
   // Scenario "Написали заметку": a new note starts the term again.
@@ -96,14 +101,14 @@ describe("the day the term ends", () => {
     await makeNote(id, { createdAt: moscow("2026-10-01T10:00") });
     await makeNote(id, { createdAt: moscow("2026-09-20T10:00") });
 
-    expect((await getContact(id)).dueDay).toBe("2026-10-08");
+    expect((await getContact(TEST_USER_ID, id)).dueDay).toBe("2026-10-08");
   });
 
   it("is not there for a contact without a frequency", async () => {
     const id = await makeContact("Иван Петров");
     await makeNote(id, { createdAt: daysAgo(400) });
 
-    const contact = await getContact(id);
+    const contact = await getContact(TEST_USER_ID, id);
     expect(contact.dueDay).toBeNull();
     expect(contact.isDue).toBe(false);
   });
@@ -114,14 +119,14 @@ describe("whether it is time to talk", () => {
   it("is not yet the day before the term ends", async () => {
     const id = await contactNotedDaysAgo("Иван Петров", "week", 6);
 
-    expect((await getContact(id)).isDue).toBe(false);
-    expect(await listDueContacts()).toEqual([]);
+    expect((await getContact(TEST_USER_ID, id)).isDue).toBe(false);
+    expect(await listDueContacts(TEST_USER_ID)).toEqual([]);
   });
 
   it("is from the day the term ends", async () => {
     const id = await contactNotedDaysAgo("Иван Петров", "week", 7);
 
-    expect((await getContact(id)).isDue).toBe(true);
+    expect((await getContact(TEST_USER_ID, id)).isDue).toBe(true);
     expect(await dueNames()).toEqual(["Иван Петров"]);
   });
 
@@ -136,11 +141,11 @@ describe("whether it is time to talk", () => {
     const id = await contactNotedDaysAgo("Иван Петров", "week", 40);
     await makeNote(id);
 
-    expect(await listDueContacts()).toEqual([]);
+    expect(await listDueContacts(TEST_USER_ID)).toEqual([]);
     const [today] = await db.execute<{ day: string }>(
       sql`select ((now() at time zone 'Europe/Moscow')::date + 7)::text as day`,
     );
-    expect((await getContact(id)).dueDay).toBe(today.day);
+    expect((await getContact(TEST_USER_ID, id)).dueDay).toBe(today.day);
   });
 
   // Scenario "Заметок нет": the contact is in the block once the term from the frequency ends.
@@ -150,7 +155,7 @@ describe("whether it is time to talk", () => {
       contactFrequencySetAt: daysAgo(7),
     });
 
-    expect(await listDueContacts()).toEqual([
+    expect(await listDueContacts(TEST_USER_ID)).toEqual([
       { id, name: "Иван Петров", contactFrequency: "week", daysSinceLastNote: null },
     ]);
   });
@@ -160,7 +165,7 @@ describe("whether it is time to talk", () => {
     const id = await makeContact("Иван Петров", { createdAt: daysAgo(1000) });
     await makeNote(id, { createdAt: daysAgo(900) });
 
-    expect(await listDueContacts()).toEqual([]);
+    expect(await listDueContacts(TEST_USER_ID)).toEqual([]);
   });
 });
 
@@ -182,7 +187,7 @@ describe("the block «Пора связаться»", () => {
     await contactNotedDaysAgo("Борис", "year", 100);
     await makeContact("Вера");
 
-    expect(await listDueContacts()).toEqual([]);
+    expect(await listDueContacts(TEST_USER_ID)).toEqual([]);
   });
 
   // Scenario "Удалили контакт"
@@ -220,7 +225,7 @@ describe("the block «Пора связаться»", () => {
   it("gives the days since the last note", async () => {
     const id = await contactNotedDaysAgo("Иван", "month", 45);
 
-    expect(await listDueContacts()).toEqual([
+    expect(await listDueContacts(TEST_USER_ID)).toEqual([
       { id, name: "Иван", contactFrequency: "month", daysSinceLastNote: 45 },
     ]);
   });
@@ -232,7 +237,7 @@ describe("the block «Пора связаться»", () => {
       contactFrequencySetAt: daysAgo(400),
     });
 
-    expect(await listDueContacts()).toEqual([
+    expect(await listDueContacts(TEST_USER_ID)).toEqual([
       { id, name: "Олег", contactFrequency: "year", daysSinceLastNote: null },
     ]);
   });

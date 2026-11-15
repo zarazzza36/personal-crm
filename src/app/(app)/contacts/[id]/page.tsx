@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { BellIcon } from "lucide-react";
 
+import { getCurrentUser } from "@/auth/session";
 import { AllContactsLink } from "@/components/all-contacts-link";
 import { ContactAvatar } from "@/components/contact-avatar";
 import { ContactGroupsEditor } from "@/components/contact-groups-editor";
@@ -38,6 +39,7 @@ export default function ContactPage({ params }: PageProps<"/contacts/[id]">) {
 }
 
 async function ContactCard({ params }: { params: Params }) {
+  const { id: userId } = await getCurrentUser();
   const { id } = await params;
   const contactId = parseContactId(id);
   if (contactId === null) {
@@ -45,10 +47,10 @@ async function ContactCard({ params }: { params: Params }) {
   }
 
   const [contact, notes, contactGroups, groups] = await Promise.all([
-    getContact(contactId),
-    listNotes(contactId),
-    listContactGroups(contactId),
-    listGroups(),
+    getContact(userId, contactId),
+    listNotes(userId, contactId),
+    listContactGroups(userId, contactId),
+    listGroups(userId),
   ]);
   if (!contact) {
     notFound();

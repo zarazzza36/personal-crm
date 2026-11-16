@@ -138,7 +138,7 @@ export async function findOrCreateGroup(
     );
   if (!group) {
     // Deleted by someone between the two queries.
-    throw new Error(`Group "${name}" disappeared while it was being saved`);
+    throw new Error("Group disappeared while it was being saved");
   }
   return group.id;
 }

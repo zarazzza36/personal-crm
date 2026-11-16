@@ -24,6 +24,7 @@ import { contactCursorSchema, contactsLimitSchema, type ContactsPage } from "@/l
 import { contactGroupsInputSchema, groupIdSchema, type SaveGroupResult } from "@/lib/group-input";
 import type { AddToGroupResult } from "@/lib/groups";
 import { reminderMomentSchema, type Reminder } from "@/lib/reminders";
+import { safeSave } from "@/lib/safe-save";
 
 type SaveContactResult = { ok: true; id: number } | { ok: false; errors: ContactFormErrors };
 
@@ -75,11 +76,13 @@ export async function createContact(input: unknown, groups: unknown): Promise<Sa
   }
 
   // The contact and its groups are saved together or not at all.
-  const createdId = await db.transaction(async (tx) => {
-    const id = await contactData.insertContact(userId, tx, parsed.contact);
-    await groupData.setContactGroups(userId, tx, id, parsed.groups);
-    return id;
-  });
+  const createdId = await safeSave("contact", () =>
+    db.transaction(async (tx) => {
+      const id = await contactData.insertContact(userId, tx, parsed.contact);
+      await groupData.setContactGroups(userId, tx, id, parsed.groups);
+      return id;
+    }),
+  );
 
   if (parsed.groups.groupIds.length > 0 || parsed.groups.newGroupNames.length > 0) {
     // The groups' pages show the number of contacts and the new groups: refresh them too.
@@ -100,13 +103,15 @@ export async function updateContact(
     return { ok: false, errors: parsed.errors };
   }
 
-  await db.transaction(async (tx) => {
-    const updatedId = await contactData.updateContact(userId, tx, contactId, parsed.contact);
-    if (updatedId === undefined) {
-      throw new Error(`Contact ${contactId} not found`);
-    }
-    await groupData.setContactGroups(userId, tx, updatedId, parsed.groups);
-  });
+  await safeSave("contact", () =>
+    db.transaction(async (tx) => {
+      const updatedId = await contactData.updateContact(userId, tx, contactId, parsed.contact);
+      if (updatedId === undefined) {
+        throw new Error(`Contact ${contactId} not found`);
+      }
+      await groupData.setContactGroups(userId, tx, updatedId, parsed.groups);
+    }),
+  );
 
   // The contact is shown both in its card and in the list: refresh every page.
   revalidatePath("/", "layout");
@@ -133,9 +138,11 @@ export async function addNote(contactId: unknown, body: unknown): Promise<AddNot
     return { ok: false, error: parsed.error.issues[0].message };
   }
 
-  const inserted = await db.execute(sql`insert into ${notes} (contact_id, body)
+  const inserted = await safeSave("note", () =>
+    db.execute(sql`insert into ${notes} (contact_id, body)
     select ${contacts.id}, ${parsed.data.body} from ${contacts}
-    where ${contacts.id} = ${id} and ${contacts.userId} = ${userId} returning id`);
+    where ${contacts.id} = ${id} and ${contacts.userId} = ${userId} returning id`),
+  );
   if (!inserted.length) throw new Error(`Contact ${id} not found`);
 
   // A note restarts the countdown: "Пора связаться" on the list must not show the contact
@@ -150,7 +157,9 @@ export async function addNote(contactId: unknown, body: unknown): Promise<AddNot
 
 export async function createGroup(name: unknown): Promise<SaveGroupResult> {
   const { id: userId } = await getCurrentUser();
-  const result = await groupData.createGroup(userId, z.string().parse(name));
+  const result = await safeSave("group", () =>
+    groupData.createGroup(userId, z.string().parse(name)),
+  );
 
   if (result.ok) {
     revalidatePath("/", "layout");
@@ -160,10 +169,8 @@ export async function createGroup(name: unknown): Promise<SaveGroupResult> {
 
 export async function renameGroup(id: unknown, name: unknown): Promise<SaveGroupResult> {
   const { id: userId } = await getCurrentUser();
-  const result = await groupData.renameGroup(
-    userId,
-    groupIdSchema.parse(id),
-    z.string().parse(name),
+  const result = await safeSave("group", () =>
+    groupData.renameGroup(userId, groupIdSchema.parse(id), z.string().parse(name)),
   );
 
   if (result.ok) {
@@ -203,10 +210,12 @@ export async function addContactToNewGroup(
   name: unknown,
 ): Promise<AddToGroupResult> {
   const { id: userId } = await getCurrentUser();
-  const result = await groupData.addContactToNewGroup(
-    userId,
-    contactIdSchema.parse(contactId),
-    z.string().parse(name),
+  const result = await safeSave("group", () =>
+    groupData.addContactToNewGroup(
+      userId,
+      contactIdSchema.parse(contactId),
+      z.string().parse(name),
+    ),
   );
 
   if (result.ok) {

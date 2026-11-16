@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { inspect } from "node:util";
 
 import { eq } from "drizzle-orm";
 import { expect, it, vi } from "vitest";
@@ -14,6 +15,7 @@ import { contacts, groups, notes, users } from "@/db/schema";
 
 import {
   addNote,
+  createContact,
   deleteContact,
   deleteGroup,
   dismissReminder,
@@ -56,7 +58,7 @@ it("прямые действия другого пользователя не �
       },
       { groupIds: [], newGroupNames: [] },
     ),
-  ).rejects.toThrow("not found");
+  ).rejects.toThrow("Failed to save contact");
   await expect(deleteContact(contact.id)).rejects.toThrow();
   await deleteGroup(group.id);
   await setContactGroupMembership(contact.id, group.id, true);
@@ -71,4 +73,47 @@ it("прямые действия другого пользователя не �
     remindAt,
   );
   expect(await db.$count(groups, eq(groups.id, group.id))).toBe(1);
+});
+
+it("does not expose submitted contact or note data when saving fails", async () => {
+  const personalData = "Private Name +79991234567 private@example.com Private note";
+  const original = new Error(`Failed query: ${personalData}`, {
+    cause: new Error(`Database detail: ${personalData}`),
+  });
+  const transaction = vi.spyOn(db, "transaction").mockRejectedValue(original);
+  const execute = vi.spyOn(db, "execute").mockRejectedValue(original);
+
+  try {
+    const results = await Promise.allSettled([
+      createContact(
+        {
+          name: "Private Name",
+          about: "",
+          howWeMet: "",
+          phone: "+79991234567",
+          email: "private@example.com",
+          capacityTons: "",
+          volumeCubicMeters: "",
+          bodyType: "",
+          contactFrequency: "",
+        },
+        { groupIds: [], newGroupNames: [] },
+      ),
+      addNote(1, "Private note"),
+    ]);
+    for (const result of results) {
+      expect(result.status).toBe("rejected");
+      if (result.status === "rejected") {
+        expect(inspect(result.reason, { depth: null })).not.toContain("Private");
+        expect(inspect(result.reason, { depth: null })).not.toContain("private@example.com");
+        expect(inspect(result.reason, { depth: null })).not.toContain("79991234567");
+        expect(result.reason.cause).toBeUndefined();
+      }
+    }
+    expect(transaction).toHaveBeenCalled();
+    expect(execute).toHaveBeenCalled();
+  } finally {
+    transaction.mockRestore();
+    execute.mockRestore();
+  }
 });

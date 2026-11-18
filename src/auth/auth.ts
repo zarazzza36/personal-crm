@@ -16,7 +16,10 @@ import { sendSignInLink } from "./mailer";
 export const auth = betterAuth({
   database: drizzleAdapter(db, { provider: "pg", schema, usePlural: true }),
   session: { expiresIn: 30 * 24 * 60 * 60, updateAge: 60 * 60 },
-  advanced: { ipAddress: { ipAddressHeaders: ["x-real-ip"] } },
+  advanced: {
+    crossSubDomainCookies: { enabled: false },
+    ipAddress: { ipAddressHeaders: ["x-real-ip"] },
+  },
   telemetry: { enabled: false },
   hooks: {
     before: createAuthMiddleware(async (ctx) => {

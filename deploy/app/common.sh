@@ -1,16 +1,30 @@
 # Shared by deploy.sh, rollback.sh and restore.sh: they source it, it is not
 # run on its own.
 #
-# The app's folder on the server is two levels up from this file:
-#   /home/deploy/personal-crm/deploy/app/common.sh -> /home/deploy/personal-crm
-# It keeps .env, current-image, previous-image and backups/. The deploy/ folder
-# next to them is a copy of deploy/ from the repo, replaced on every deploy.
+# Each environment has its own .env, deploy/, lock and image state. Production
+# stays in personal-crm with its existing Compose volume and backups.
 
 SCRIPTS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-APP_DIR=$(cd "$SCRIPTS_DIR/../.." && pwd)
+DEPLOY_ENV=${DEPLOY_ENV:-prod}
+DEPLOY_HOME=$(getent passwd deploy | cut -d: -f6)
+PROD_DIR=$DEPLOY_HOME/personal-crm
+STAGING_DIR=$DEPLOY_HOME/personal-crm-staging
+case "$DEPLOY_ENV" in
+  prod)
+    APP_DIR=$PROD_DIR
+    APP_DOMAIN=app.volki-lzkv.ru
+    export CRM_PORT=3100 CRM_APP_MEMORY=0 CRM_DB_MEMORY=0 CRM_MIGRATE_MEMORY=0
+    ;;
+  staging)
+    APP_DIR=$STAGING_DIR
+    APP_DOMAIN=test-app.volki-lzkv.ru
+    export CRM_PORT=3101 CRM_APP_MEMORY=384m CRM_DB_MEMORY=256m CRM_MIGRATE_MEMORY=256m
+    ;;
+  *) echo "Unknown environment: $DEPLOY_ENV" >&2; exit 1 ;;
+esac
+export BETTER_AUTH_URL="https://$APP_DOMAIN"
 BACKUP_DIR=$APP_DIR/backups
 BACKUPS_TO_KEEP=10
-APP_DOMAIN=app.volki-lzkv.ru
 
 cd "$APP_DIR"
 # Backups and state files hold personal data: only the owner reads them.
@@ -22,8 +36,13 @@ step() { printf '\n==> %s\n' "$*"; }
 export COMPOSE_IGNORE_ORPHANS=1
 # compose.yaml needs CRM_IMAGE: the caller exports it before the first call.
 compose() {
-  docker compose --project-name prod --env-file "$APP_DIR/.env" \
+  docker compose --project-name "$DEPLOY_ENV" --env-file "$APP_DIR/.env" \
     --file "$SCRIPTS_DIR/compose.yaml" "$@"
+}
+
+lock_environment() {
+  exec 9>"$APP_DIR/.deploy.lock"
+  flock 9
 }
 
 require_env() {
@@ -45,10 +64,22 @@ image_tag() {
 }
 
 smoke_check() {
-  local attempt code
+  local attempt code url
+  local -a resolve=(--resolve "$APP_DOMAIN:443:127.0.0.1")
+  url="https://$APP_DOMAIN/health"
+  if [ "$DEPLOY_ENV" = staging ]; then
+    # The public endpoint stays behind Basic Auth. Check the app on loopback
+    # and verify HTTPS and the password challenge without using a password.
+    code=$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 10 \
+      "${resolve[@]}" "$url") || code=000
+    echo "Protected HTTPS endpoint: HTTP $code (expected 401)"
+    [ "$code" = 401 ] || return 1
+    resolve=()
+    url="http://127.0.0.1:$CRM_PORT/health"
+  fi
   for attempt in 1 2 3 4 5; do
     code=$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 10 \
-      --resolve "$APP_DOMAIN:443:127.0.0.1" "https://$APP_DOMAIN/health") || code=000
+      "${resolve[@]}" "$url") || code=000
     echo "attempt $attempt: HTTP $code"
     if [ "$code" = 200 ]; then
       return 0

@@ -1,4 +1,4 @@
-# Every push to main: build the app image, push it to GHCR, deploy it to the server.
+# Every push to main: build one image, then deploy it to prod and staging.
 # The deploy itself is deploy/app/deploy.sh; this workflow copies the whole deploy/ folder
 # to the server and runs it.
 name: Deploy
@@ -6,11 +6,6 @@ name: Deploy
 on:
   push:
     branches: [main]
-
-# One deploy at a time: a newer push waits until the running deploy is over.
-concurrency:
-  group: deploy
-  cancel-in-progress: false
 
 env:
   IMAGE: ghcr.io/${{ github.repository }}:${{ github.sha }}
@@ -39,8 +34,20 @@ jobs:
           cache-to: type=gha,mode=max
 
   deploy:
+    name: Deploy ${{ matrix.target }}
     needs: build
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: prod
+            app_dir: personal-crm
+          - target: staging
+            app_dir: personal-crm-staging
+    concurrency:
+      group: deploy-${{ matrix.target }}
+      cancel-in-progress: false
     permissions:
       contents: read
       packages: read
@@ -66,18 +73,29 @@ jobs:
             StrictHostKeyChecking yes
             ServerAliveInterval 30
           EOF
-      # The server's copy of deploy/ is replaced as a whole: scripts removed from the repo go too.
       - name: Copy the deploy folder to the server
+        shell: bash
+        env:
+          APP_DIR: ${{ matrix.app_dir }}
         run: |
-          tar -cf - deploy | ssh server '
+          remote_script='
             set -e
-            cd personal-crm
-            rm -rf deploy.new
-            mkdir deploy.new
-            tar -C deploy.new --strip-components=1 -xf -
-            rm -rf deploy
-            mv deploy.new deploy'
+            cd "$1"
+            exec 9>.deploy.lock
+            flock 9
+            upload=$(mktemp -d .deploy.XXXXXXXXXX)
+            cleanup() { rm -rf -- "$upload"; }
+            trap cleanup EXIT
+            tar -C "$upload" -xf -
+            if [ -d deploy ]; then mv deploy "$upload/previous"; fi
+            if ! mv "$upload/deploy" deploy; then
+              if [ -d "$upload/previous" ]; then mv "$upload/previous" deploy; fi
+              exit 1
+            fi'
+          tar -cf - deploy | ssh server "bash -c '$remote_script' _ '$APP_DIR'"
       - name: Deploy
         env:
+          TARGET: ${{ matrix.target }}
+          APP_DIR: ${{ matrix.app_dir }}
           REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: printf '%s' "$REGISTRY_TOKEN" | ssh server "bash personal-crm/deploy/app/deploy.sh '$IMAGE' '${{ github.actor }}'"
+        run: printf '%s' "$REGISTRY_TOKEN" | ssh server "bash '$APP_DIR/deploy/app/deploy.sh' '$TARGET' '$IMAGE' '${{ github.actor }}'"

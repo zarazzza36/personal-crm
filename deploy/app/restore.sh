@@ -17,7 +17,9 @@ case "$backup" in
   */*) backup=$PWD/$backup ;;
 esac
 
+DEPLOY_ENV=prod
 source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
+lock_environment
 
 fail() {
   echo "$*" >&2

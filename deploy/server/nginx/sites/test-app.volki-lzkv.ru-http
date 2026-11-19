@@ -1,0 +1,14 @@
+server {
+    listen 80;
+    listen [::]:80;
+    server_name test-app.volki-lzkv.ru;
+
+    location ^~ /.well-known/acme-challenge/ {
+        root /var/www/letsencrypt;
+    }
+
+    location / {
+        return 301 https://test-app.volki-lzkv.ru$request_uri;
+        access_log off;
+    }
+}

@@ -1,13 +1,16 @@
-# The app on the server: compose project "prod", run by deploy.sh.
-# The landing shares the project, so every name here starts with "crm-".
-# Values come from .env next to this file; CRM_IMAGE is set by deploy.sh.
+# Shared by the prod and staging Compose projects. Each has its own .env,
+# network and database volume. common.sh sets the domain, port and limits.
 
 x-database-url: &database-url postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@crm-postgres:5432/${POSTGRES_DB}
+x-logging: &logging
+  driver: journald
 
 services:
   crm-postgres:
     image: postgres:17-alpine
     restart: unless-stopped
+    mem_limit: ${CRM_DB_MEMORY:-0}
+    logging: *logging
     environment:
       POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is not set in .env}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is not set in .env}
@@ -24,6 +27,8 @@ services:
   # One-off: deploy.sh runs it before starting a new image and stops on failure.
   crm-migrate:
     image: ${CRM_IMAGE:?CRM_IMAGE is not set}
+    mem_limit: ${CRM_MIGRATE_MEMORY:-0}
+    logging: *logging
     profiles: [deploy]
     working_dir: /app/migrate
     command: ["node", "migrate.mts"]
@@ -38,14 +43,16 @@ services:
   crm-app:
     image: ${CRM_IMAGE:?CRM_IMAGE is not set}
     restart: unless-stopped
+    mem_limit: ${CRM_APP_MEMORY:-0}
+    logging: *logging
     environment:
       DATABASE_URL: *database-url
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?BETTER_AUTH_SECRET is not set}
-      BETTER_AUTH_URL: https://app.volki-lzkv.ru
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:?BETTER_AUTH_URL is not set}
       SMTP_URL: ${SMTP_URL:?SMTP_URL is not set}
-    # Only nginx on the same server reaches the app; it serves app.volki-lzkv.ru.
+    # Only nginx and local health checks reach the app directly.
     ports:
-      - "127.0.0.1:3100:3000"
+      - "127.0.0.1:${CRM_PORT:?CRM_PORT is not set}:3000"
     networks: [crm]
     depends_on:
       crm-postgres:

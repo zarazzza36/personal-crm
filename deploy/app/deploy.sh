@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
-# Deploys one image of the app on this server. GitHub Actions runs it after
-# every push to main:
+# Deploys one image of the app on this server. GitHub Actions runs it:
 #   bash deploy.sh <prod|staging> <image|--rollback> [<registry user>]
 # When the image has to be pulled, a short-lived registry token comes on stdin.
 #
 # Pull the image, back up production, migrate in a one-off container, start the
-# new image and check /health. rollback.sh is run by hand.
+# new image and check /health. Production rollback is started in Deploy prod.
 set -euo pipefail
 
 usage='Usage: bash deploy.sh <prod|staging> <image|--rollback> [<registry user>]'
@@ -64,7 +63,7 @@ fi
 compose run --rm --no-TTY crm-migrate </dev/null
 
 # From here on the new image replaces the running one, so it becomes the
-# current image even if it fails to start: rollback.sh then returns to the one
+# current image even if it fails to start: rollback then returns to the one
 # that ran before.
 if [ "$current" != "$IMAGE" ]; then
   if [ -n "$current" ]; then
@@ -79,7 +78,7 @@ compose up --detach --wait --wait-timeout 120 crm-app
 step "Smoke check: https://$APP_DOMAIN/health"
 if ! smoke_check; then
   compose logs --tail 50 crm-app
-  echo "Smoke check failed. To return to the previous image, run rollback.sh $DEPLOY_ENV." >&2
+  echo 'Smoke check failed. See the rollback instructions in README.md.' >&2
   exit 1
 fi
 
@@ -93,18 +92,24 @@ if [ "$DEPLOY_ENV" = prod ]; then
         exit 0
       fi
     fi
-    keep=" $(cat current-image) $(cat previous-image 2>/dev/null || true) $(cat "$STAGING_DIR/current-image" 2>/dev/null || true) $(cat "$STAGING_DIR/previous-image" 2>/dev/null || true) "
+    previous=$(cat previous-image 2>/dev/null || true)
+    staging=$(cat "$STAGING_DIR/current-image" 2>/dev/null || true)
     cutoff=$(date -d '14 days ago' +%s)
     docker image ls "${IMAGE%:*}" --filter dangling=false --format '{{.Repository}}:{{.Tag}} {{.CreatedAt}}' |
       while read -r image created; do
-        case "$keep" in
-          *" $image "*) continue ;;
-        esac
-        if [ "$(date -d "${created% *}" +%s)" -lt "$cutoff" ]; then
+        if [[ ! "${image##*:}" =~ ^[0-9a-f]{40}$ ]]; then
+          continue
+        fi
+        if [ "$image" = "$IMAGE" ] || [ "$image" = "$previous" ] || [ "$image" = "$staging" ]; then
+          continue
+        fi
+        created_at=$(date -d "${created% *}" +%s) || continue
+        if [ "$created_at" -lt "$cutoff" ]; then
           docker image rm "$image" || true
         fi
-      done
+      done || echo 'Warning: could not list application images for cleanup.' >&2
   )
 fi
 
 step "Deployed $IMAGE"
+printf 'Deployed SHA: %s\n' "$(image_tag "$IMAGE")"

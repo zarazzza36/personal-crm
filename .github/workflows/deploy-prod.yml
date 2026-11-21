@@ -1,0 +1,58 @@
+name: Deploy prod
+
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: Full commit SHA (leave blank for the latest successful staging deployment)
+        type: string
+      rollback:
+        description: Roll back to the previous production version
+        type: boolean
+        default: false
+
+concurrency:
+  group: deploy-prod-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v7
+      - name: Select the release
+        id: release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REQUESTED_SHA: ${{ inputs.sha }}
+          ROLLBACK: ${{ inputs.rollback }}
+        run: bash deploy/ci/select-prod-release.sh
+      - name: Deploy to production
+        env:
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ vars.DEPLOY_USER }}
+          DEPLOY_KNOWN_HOSTS: ${{ vars.DEPLOY_KNOWN_HOSTS }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE: ${{ steps.release.outputs.release }}
+        run: bash deploy/ci/run-deploy.sh prod "$RELEASE"
+
+  cleanup:
+    name: Clean up old GHCR builds
+    needs: deploy
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+      - name: Keep the latest 10 builds
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OWNER_TYPE: ${{ github.event.repository.owner.type }}
+        run: bash deploy/ci/prune-registry.sh

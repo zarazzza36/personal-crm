@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Rolls the app back to the previous image. Nothing runs it automatically:
-# on the server,
-#   sudo -u deploy bash /home/deploy/personal-crm/deploy/app/rollback.sh
-# Production backs up the database first.
-# Migrations are not undone: the previous image starts on the current database.
+# Rolls staging back to its previous cached image. For production, use Deploy prod.
 set -euo pipefail
 
-exec bash "$(dirname "${BASH_SOURCE[0]}")/deploy.sh" "${1:-prod}" --rollback </dev/null
+if [ "${1:-}" != staging ]; then
+  echo 'Usage: bash rollback.sh staging. For production, run Deploy prod with rollback checked.' >&2
+  exit 1
+fi
+exec bash "$(dirname "${BASH_SOURCE[0]}")/deploy.sh" staging --rollback </dev/null

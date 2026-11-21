@@ -32,6 +32,9 @@ case "$backup" in
 esac
 [ -f "$backup" ] && [ -r "$backup" ] || fail "No backup file $backup"
 backup=$(realpath "$backup")
+# Keep the dump readable if the safety backup prunes its old filename.
+exec 8<"$backup"
+backup_fd=/proc/$$/fd/8
 
 current=$(cat current-image 2>/dev/null || true)
 [ -n "$current" ] || fail "No app version in $APP_DIR/current-image: deploy the app first."
@@ -43,7 +46,7 @@ require_env
 
 step "Checking the backup"
 compose up --detach --wait crm-postgres
-compose exec -T crm-postgres pg_restore --list <"$backup" >/dev/null ||
+compose exec -T crm-postgres pg_restore --list <"$backup_fd" >/dev/null ||
   fail "$backup is not a database backup: nothing changed."
 database=$(compose exec -T crm-postgres printenv POSTGRES_DB </dev/null)
 
@@ -88,7 +91,7 @@ compose exec -T crm-postgres sh -c '
   createdb --username "$POSTGRES_USER" "$POSTGRES_DB"' </dev/null
 compose exec -T crm-postgres sh -c '
   pg_restore --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" \
-    --no-owner --exit-on-error --single-transaction' <"$backup"
+    --no-owner --exit-on-error --single-transaction' <"$backup_fd"
 
 step "Database migrations of $(image_tag "$current")"
 compose run --rm --no-TTY crm-migrate </dev/null

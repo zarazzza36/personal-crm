@@ -1,5 +1,4 @@
-# Shared by deploy.sh, rollback.sh and restore.sh: they source it, it is not
-# run on its own.
+# Shared by the deploy, backup and restore scripts.
 #
 # Each environment has its own .env, deploy/, lock and image state. Production
 # stays in personal-crm with its existing Compose volume and backups.
@@ -24,7 +23,7 @@ case "$DEPLOY_ENV" in
 esac
 export BETTER_AUTH_URL="https://$APP_DOMAIN"
 BACKUP_DIR=$APP_DIR/backups
-BACKUPS_TO_KEEP=10
+BACKUPS_TO_KEEP=7
 
 cd "$APP_DIR"
 # Backups and state files hold personal data: only the owner reads them.
@@ -92,19 +91,20 @@ smoke_check() {
 # Dumps the production database into backups/:
 #   backup_database <image the database belongs to> [<suffix>]
 # File name: <Moscow date and time>_<image tag>[_<suffix>].dump. Sets
-# BACKUP_FILE to the new file. Afterwards only the newest BACKUPS_TO_KEEP
-# backups stay.
+# BACKUP_FILE to the new file. Each suffix has its own retention limit;
+# pre-deploy backups keep their existing names without a suffix.
 backup_database() {
+  local suffix=${2:-}
   local tag name partial
   tag=$(image_tag "$1")
-  name="$(TZ=Europe/Moscow date +%Y-%m-%d_%H-%M-%S)_$tag${2:+_$2}.dump"
+  name="$(TZ=Europe/Moscow date +%Y-%m-%d_%H-%M-%S)_$tag${suffix:+_$suffix}.dump"
   BACKUP_FILE=$BACKUP_DIR/$name
-  partial=$BACKUP_DIR/.$name.partial
 
   install -d -m 700 "$BACKUP_DIR"
   compose up --detach --wait crm-postgres
   # The database login and name come from the container's environment.
   # A half-written dump never gets a backup's name.
+  partial=$(mktemp "$BACKUP_DIR/.$name.XXXXXXXXXX.partial")
   if ! compose exec -T crm-postgres sh -c \
     'pg_dump --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" --format custom' \
     </dev/null >"$partial"; then
@@ -115,8 +115,9 @@ backup_database() {
   mv "$partial" "$BACKUP_FILE"
   echo "Backup: $BACKUP_FILE ($(du -h "$BACKUP_FILE" | cut -f1))"
 
-  # Names start with the date and time, so the newest sort last.
-  find "$BACKUP_DIR" -maxdepth 1 -type f -name '*.dump' -printf '%f\n' | sort -r |
+  find "$BACKUP_DIR" -regextype posix-extended -maxdepth 1 -type f \
+    -regex ".*/[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{2}-[0-9]{2}-[0-9]{2}_(none|[0-9a-f]{40})${suffix:+_$suffix}\.dump" \
+    -printf '%f\n' | LC_ALL=C sort -r |
     tail -n +$((BACKUPS_TO_KEEP + 1)) |
     while read -r old; do
       echo "remove old backup $old"

@@ -58,11 +58,13 @@ export function formatDateTimeWithSeconds(date: Date) {
   return dateTimeWithSecondsFormat.format(date);
 }
 
-/** A day without time ("2026-11-15"): "15 ноября", with the year only when it is not this one. */
-export function formatDay(day: string) {
+/** A calendar date ("2026-11-15"). By default the year is shown only outside the current year. */
+export function formatDay(day: string, year: "auto" | "always" | "never" = "auto") {
   const date = new Date(`${day}T00:00:00Z`);
-  const thisYear = toMoscowInput(new Date()).date.slice(0, 4);
-  return (day.startsWith(thisYear) ? dayFormat : dayWithYearFormat).format(date);
+  const showYear =
+    year === "always" ||
+    (year === "auto" && !day.startsWith(toMoscowInput(new Date()).date.slice(0, 4)));
+  return (showYear ? dayWithYearFormat : dayFormat).format(date);
 }
 
 /** "21 день", "22 дня", "25 дней". */

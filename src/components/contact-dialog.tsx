@@ -45,6 +45,7 @@ type EditableContact = {
   howWeMet: string | null;
   phone: string | null;
   email: string | null;
+  birthDate: string | null;
   capacityTons: number | null;
   volumeCubicMeters: number | null;
   bodyType: BodyType | null;
@@ -59,6 +60,7 @@ const emptyValues: ContactFormValues = {
   howWeMet: "",
   phone: "",
   email: "",
+  birthDate: "",
   capacityTons: "",
   volumeCubicMeters: "",
   bodyType: "",
@@ -173,6 +175,7 @@ function ContactForm({
             howWeMet: contact.howWeMet ?? "",
             phone: contact.phone ?? "",
             email: contact.email ?? "",
+            birthDate: contact.birthDate ?? "",
             capacityTons: amountToText(contact.capacityTons),
             volumeCubicMeters: amountToText(contact.volumeCubicMeters),
             bodyType: contact.bodyType ?? "",
@@ -223,6 +226,13 @@ function ContactForm({
         placeholder="ivan@example.com"
         defaultValue={values.email}
         error={errors.email}
+      />
+      <Field
+        name="birthDate"
+        label="Дата рождения"
+        type="date"
+        defaultValue={values.birthDate}
+        error={errors.birthDate}
       />
       <SelectField
         name="contactFrequency"

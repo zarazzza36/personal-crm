@@ -18,25 +18,26 @@ it("переносит существующие записи владельцу 
     const journal = JSON.parse(await readFile("drizzle/meta/_journal.json", "utf8")) as {
       entries: { tag: string }[];
     };
-    const migrations = await Promise.all(
-      journal.entries.map(({ tag }) => readFile(`drizzle/${tag}.sql`, "utf8")),
-    );
-    for (const migration of migrations.slice(0, -1)) await client.unsafe(migration).simple();
+    const ownershipTag = "0005_busy_adam_destine";
+    for (const { tag } of journal.entries) {
+      if (tag === ownershipTag) break;
+      await client.unsafe(await readFile(`drizzle/${tag}.sql`, "utf8")).simple();
+    }
     await client`insert into contacts (name) values ('Старый контакт')`;
     await client`insert into notes (contact_id, body) values (1, 'Старая заметка')`;
     await client`insert into groups (name) values ('Старая группа')`;
     await client`insert into contact_groups (contact_id, group_id) values (1, 1)`;
 
-    const latest = migrations.at(-1)!;
-    await expect(client.begin(async (tx) => tx.unsafe(latest).simple())).rejects.toThrow(
-      "OWNER_EMAIL",
-    );
+    const ownershipMigration = await readFile(`drizzle/${ownershipTag}.sql`, "utf8");
+    await expect(
+      client.begin(async (tx) => tx.unsafe(ownershipMigration).simple()),
+    ).rejects.toThrow("OWNER_EMAIL");
     const [rollback] = await client`select to_regclass('public.users') as users`;
     expect(rollback.users).toBeNull();
     expect(await client`select name from contacts`).toEqual([{ name: "Старый контакт" }]);
 
     await client`select set_config('crm.owner_email', ' Owner@Example.com ', false)`;
-    await client.begin(async (tx) => tx.unsafe(latest).simple());
+    await client.begin(async (tx) => tx.unsafe(ownershipMigration).simple());
     const [owner] = await client`select id, email, email_verified from users`;
     expect(owner.email).toBe("owner@example.com");
     expect(owner.email_verified).toBe(true);

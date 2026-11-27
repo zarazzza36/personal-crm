@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   boolean,
+  date,
   index,
   integer,
   numeric,
@@ -115,6 +116,7 @@ export const contacts = pgTable(
     howWeMet: text("how_we_met"),
     phone: text("phone"),
     email: text("email"),
+    birthDate: date("birth_date", { mode: "string" }),
     // The contact's truck, if they have one.
     capacityTons: numeric("capacity_tons", { precision: 6, scale: 2, mode: "number" }),
     volumeCubicMeters: numeric("volume_cubic_meters", { precision: 6, scale: 2, mode: "number" }),

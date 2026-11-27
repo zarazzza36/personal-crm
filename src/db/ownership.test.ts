@@ -44,6 +44,7 @@ it("разделяет контакты, заметки, группы и нап�
       howWeMet: null,
       phone: null,
       email: null,
+      birthDate: null,
       capacityTons: null,
       volumeCubicMeters: null,
       bodyType: null,

@@ -102,6 +102,11 @@ async function ContactCard({ params }: { params: Params }) {
               </a>
             )}
           </Detail>
+          <Detail label="Дата рождения">
+            {contact.birthDate && (
+              <time dateTime={contact.birthDate}>{formatDay(contact.birthDate, "always")}</time>
+            )}
+          </Detail>
           <Detail label="Как часто общаться">
             {contact.contactFrequency && (
               <div className="flex flex-wrap items-center gap-x-3 gap-y-2">

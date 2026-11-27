@@ -22,6 +22,7 @@ function contactInput(values: Partial<ContactInput> = {}): ContactInput {
     howWeMet: null,
     phone: null,
     email: null,
+    birthDate: null,
     capacityTons: null,
     volumeCubicMeters: null,
     bodyType: null,

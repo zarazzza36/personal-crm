@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { bodyTypes } from "./body-types";
 import { contactFrequencies } from "./contact-frequency";
-import { fromMoscowInput } from "./moscow-time";
+import { fromMoscowInput, toMoscowInput } from "./moscow-time";
 
 const optionalText = (maxLength: number) =>
   z
@@ -39,6 +39,26 @@ export function parseContactId(value: string | undefined) {
   return value !== undefined && /^[1-9]\d{0,8}$/.test(value) ? Number(value) : null;
 }
 
+const birthDateError = "Укажите корректную дату рождения";
+const calendarDate = z.iso.date();
+const birthDateInput = z
+  .string({ error: birthDateError })
+  .optional()
+  .transform((value, context) => {
+    // An older form can omit the field. Only an explicitly empty field clears a saved date.
+    if (value === undefined) return undefined;
+    if (value === "") return null;
+    if (!calendarDate.safeParse(value).success || value.startsWith("0000-")) {
+      context.addIssue({ code: "custom", message: birthDateError });
+      return z.NEVER;
+    }
+    if (value > toMoscowInput(new Date()).date) {
+      context.addIssue({ code: "custom", message: "Дата рождения ещё не наступила" });
+      return z.NEVER;
+    }
+    return value;
+  });
+
 export const contactInputSchema = z.object({
   name: z.string().trim().min(1, "Укажите имя").max(200, "Не длиннее 200 символов"),
   about: optionalText(500),
@@ -48,6 +68,7 @@ export const contactInputSchema = z.object({
     (value) => value === null || /^\S+@\S+\.\S+$/.test(value),
     "Проверьте адрес почты",
   ),
+  birthDate: birthDateInput,
   capacityTons: optionalAmount(999),
   volumeCubicMeters: optionalAmount(999),
   bodyType: z

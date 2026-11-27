@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import Link from "next/link";
 
 import { getCurrentUser } from "@/auth/session";
 import { AddContactButton } from "@/components/contact-dialog";
@@ -13,11 +14,12 @@ import {
   getContactListItem,
   listContactsPage,
   listDueContacts,
+  listUpcomingBirthdays,
   searchContacts,
 } from "@/db/queries";
 import { parseContactId } from "@/lib/contact-input";
 import { CONTACTS_PAGE_SIZE, parseGroupId, type ContactsPage } from "@/lib/contact-list";
-import { formatNumber } from "@/lib/format";
+import { formatDay, formatNumber } from "@/lib/format";
 
 type SearchParams = PageProps<"/">["searchParams"];
 
@@ -54,21 +56,23 @@ async function Contacts({ searchParams }: { searchParams: SearchParams }) {
   // A search or a group shows only what it has found, without the just-added contact on top.
   const addedId = query || group ? null : parseContactId(firstValue(params.added));
 
-  const [firstPage, total, matching, addedContact, dueContacts] = await Promise.all([
-    // A search shows everything it has found at once; the full list loads part by part.
-    query
-      ? searchContacts(userId, query, groupId).then((items): ContactsPage => ({
-          items,
-          nextCursor: null,
-        }))
-      : listContactsPage(userId, null, CONTACTS_PAGE_SIZE, groupId),
-    countContacts(userId),
-    // With a group and no query the list comes in parts: how many it has in all is asked apart.
-    group && !query ? countContacts(userId, group.id) : undefined,
-    addedId ? getContactListItem(userId, addedId) : undefined,
-    // A search or a group shows only what it has found, without "Пора связаться".
-    query || group ? [] : listDueContacts(userId),
-  ]);
+  const [firstPage, total, matching, addedContact, dueContacts, upcomingBirthdays] =
+    await Promise.all([
+      // A search shows everything it has found at once; the full list loads part by part.
+      query
+        ? searchContacts(userId, query, groupId).then((items): ContactsPage => ({
+            items,
+            nextCursor: null,
+          }))
+        : listContactsPage(userId, null, CONTACTS_PAGE_SIZE, groupId),
+      countContacts(userId),
+      // With a group and no query the list comes in parts: how many it has in all is asked apart.
+      group && !query ? countContacts(userId, group.id) : undefined,
+      addedId ? getContactListItem(userId, addedId) : undefined,
+      // Search and group views only show their matching contacts.
+      query || group ? [] : listDueContacts(userId),
+      query || group ? [] : listUpcomingBirthdays(userId),
+    ]);
 
   return (
     <>
@@ -99,6 +103,7 @@ async function Contacts({ searchParams }: { searchParams: SearchParams }) {
       </header>
 
       <div className={COLUMN}>
+        {upcomingBirthdays.length > 0 && <UpcomingBirthdays contacts={upcomingBirthdays} />}
         {dueContacts.length > 0 && <KeepInTouch contacts={dueContacts} />}
         {firstPage.items.length > 0 ? (
           // Another group is another list: it starts over, without what was loaded for the last one.
@@ -115,6 +120,41 @@ async function Contacts({ searchParams }: { searchParams: SearchParams }) {
         )}
       </div>
     </>
+  );
+}
+
+function UpcomingBirthdays({
+  contacts,
+}: {
+  contacts: Awaited<ReturnType<typeof listUpcomingBirthdays>>;
+}) {
+  return (
+    <section
+      aria-labelledby="upcoming-birthdays-heading"
+      className="mt-5 mb-3 rounded-16 bg-asphalt p-5"
+    >
+      <h2
+        id="upcoming-birthdays-heading"
+        className="font-heading text-22 font-bold tracking-heading"
+      >
+        Скоро день рождения
+      </h2>
+      <ul className="mt-2 divide-y">
+        {contacts.map(({ id, name, day }) => (
+          <li key={id}>
+            <Link
+              href={`/contacts/${id}`}
+              className="-mx-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 rounded-xl px-3 py-2.5 outline-none hover:bg-muted focus-visible:bg-muted"
+            >
+              <span className="min-w-0 font-display text-15 font-medium break-words">{name}</span>{" "}
+              <time className="shrink-0 text-13 text-muted-foreground" dateTime={day}>
+                {formatDay(day, "never")}
+              </time>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

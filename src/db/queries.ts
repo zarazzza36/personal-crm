@@ -246,6 +246,26 @@ export async function listDueContacts(userId: string): Promise<DueContact[]> {
   );
 }
 
+/** Birthdays from today through the next six Moscow calendar days. */
+export async function listUpcomingBirthdays(userId: string, at?: Date) {
+  const firstDay = at === undefined ? today : moscowDay(sql`${at.toISOString()}::timestamptz`);
+  const day = sql`(${firstDay} + birthday_window.offset_days)`;
+  // Shift the original date to the candidate year. PostgreSQL clamps Feb 29 to Feb 28
+  // in non-leap years when adding a calendar-year interval.
+  const anniversary = sql`(${contacts.birthDate} + make_interval(years =>
+    (extract(year from ${day}) - extract(year from ${contacts.birthDate}))::int
+  ))::date`;
+
+  return db
+    .select({ id: contacts.id, name: contacts.name, day: sql<string>`${day}::text` })
+    .from(contacts)
+    .crossJoin(sql`generate_series(0, 6) as birthday_window(offset_days)`)
+    .where(
+      and(eq(contacts.userId, userId), isNotNull(contacts.birthDate), sql`${anniversary} = ${day}`),
+    )
+    .orderBy(asc(day), ...alphabeticalOrder);
+}
+
 /** Every note with a reminder, due or still ahead, the earliest first. */
 export async function listReminders(userId: string): Promise<Reminder[]> {
   const rows = await db

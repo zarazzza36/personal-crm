@@ -12,6 +12,9 @@ vi.mock("next/cache", () => ({ refresh: vi.fn(), revalidatePath: vi.fn() }));
 
 import { db } from "@/db";
 import { contacts, groups, notes, users } from "@/db/schema";
+import { toMoscowInput } from "@/lib/moscow-time";
+import { makeContact } from "@/test/factories";
+import { makeTestUser, TEST_USER_ID } from "@/test/test-user";
 
 import {
   addNote,
@@ -24,6 +27,46 @@ import {
   setNoteReminder,
   updateContact,
 } from "./actions";
+
+async function updateWithBirthDate(birthDate: string) {
+  await makeTestUser();
+  session.userId = TEST_USER_ID;
+  const id = await makeContact("Анна", { birthDate: "1980-02-29" });
+
+  const result = await updateContact(
+    id,
+    {
+      name: "Другое имя",
+      about: "",
+      howWeMet: "",
+      phone: "",
+      email: "",
+      birthDate,
+      capacityTons: "",
+      volumeCubicMeters: "",
+      bodyType: "",
+      contactFrequency: "",
+    },
+    { groupIds: [], newGroupNames: [] },
+  );
+  const [saved] = await db.select().from(contacts).where(eq(contacts.id, id));
+  return { result, saved };
+}
+
+it("возвращает ошибку поля и сохраняет прежний контакт при несуществующей дате", async () => {
+  const { result, saved } = await updateWithBirthDate("2001-02-29");
+
+  expect(result).toEqual({ ok: false, errors: { birthDate: "Укажите корректную дату рождения" } });
+  expect(saved).toMatchObject({ name: "Анна", birthDate: "1980-02-29" });
+});
+
+it("возвращает ошибку поля и сохраняет прежний контакт при будущей дате", async () => {
+  const tomorrow = toMoscowInput(new Date(Date.now() + 24 * 60 * 60 * 1000)).date;
+  const { result, saved } = await updateWithBirthDate(tomorrow);
+
+  expect(result).toEqual({ ok: false, errors: { birthDate: "Дата рождения ещё не наступила" } });
+  expect(saved).toMatchObject({ name: "Анна", birthDate: "1980-02-29" });
+});
 
 it("прямые действия другого пользователя не изменяют чужие данные", async () => {
   const a = randomUUID();
@@ -51,6 +94,7 @@ it("прямые действия другого пользователя не �
         howWeMet: "",
         phone: "",
         email: "",
+        birthDate: "",
         capacityTons: "",
         volumeCubicMeters: "",
         bodyType: "",
@@ -92,6 +136,7 @@ it("does not expose submitted contact or note data when saving fails", async () 
           howWeMet: "",
           phone: "+79991234567",
           email: "private@example.com",
+          birthDate: "",
           capacityTons: "",
           volumeCubicMeters: "",
           bodyType: "",

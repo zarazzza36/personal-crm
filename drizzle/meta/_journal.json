@@ -43,6 +43,13 @@
       "when": 1794770449120,
       "tag": "0005_busy_adam_destine",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1795785284890,
+      "tag": "0006_contact_birthdays",
+      "breakpoints": true
     }
   ]
 }
